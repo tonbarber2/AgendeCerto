@@ -7,6 +7,7 @@ import { BookingFlow } from './components/BookingFlow';
 import { AIReceptionist } from './components/AIReceptionist';
 import { AuthScreen } from './components/AuthScreen';
 import { SubscriptionScreen } from './components/SubscriptionScreen';
+import { Analytics } from '@vercel/analytics/react';
 import { db } from './services/db';
 import { DEFAULT_BUSINESS_HOURS } from './constants';
 
@@ -350,6 +351,7 @@ const App: React.FC = () => {
     <>
       {renderView()}
       {view !== 'ADMIN' && view !== 'AUTH' && view !== 'SUBSCRIPTION' && <AIReceptionist />}
+      <Analytics />
     </>
   );
 };
