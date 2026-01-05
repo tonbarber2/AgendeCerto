@@ -3,9 +3,21 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Agende Certo AI</title>
-    <meta name="description" content="Aplicativo de agendamento online inteligente com assistente virtual integrado." />
+    <meta name="description" content="O melhor aplicativo de agendamento online para barbearias e salões." />
+    
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#D4AF37" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AgendeCerto" />
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="https://cdn-icons-png.flaticon.com/512/3655/3655598.png" />
+    <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3655/3655598.png" />
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -60,6 +72,7 @@
         font-family: 'Inter', sans-serif;
         background-color: #f9fafb;
         transition: background-color 0.3s, color 0.3s;
+        -webkit-tap-highlight-color: transparent;
       }
       .dark body {
         background-color: #050505; /* Deep Premium Black */
