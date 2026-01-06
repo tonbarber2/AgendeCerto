@@ -185,36 +185,32 @@ const App: React.FC = () => {
   };
 
   const handleNewBooking = (newAppointment: Appointment) => {
+    // Optimistic UI update
     setAppointments(prev => [...prev, newAppointment]);
-    
-    // Save to the correct store
+  
+    // If it's a client booking (not a logged-in admin)
     if (!currentUser) {
-        const targetStoreId = publicStoreId;
-        
-        // Reload current data first to ensure we don't overwrite concurrent changes (simplified)
-        db.loadPublicData(targetStoreId).then(async (publicData) => {
-             // Find who owns this data
-             // If storeId is known, we save to it. If not, we fall back to logic in DB (last user)
-             // For robustness in this demo, if we have the ID from URL, we use it.
-             
-             let ownerId = targetStoreId;
-             
-             // Fallback for "last user" demo scenario if no URL param
-             if (!ownerId) {
-                 const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-                 if(users.length > 0) {
-                     ownerId = users[users.length - 1].id;
-                 }
-             }
-
-             if (ownerId) {
-                 const updatedData = {
-                     ...publicData,
-                     appointments: [...publicData.appointments, newAppointment]
-                 };
-                 await db.saveData(ownerId, updatedData);
-             }
-        });
+      const targetStoreId = publicStoreId;
+  
+      // Ensure booking is only saved if accessed via a valid, exclusive link
+      if (!targetStoreId) {
+        console.error("Booking failed: No store ID specified in the URL for a public user.");
+        alert("Ocorreu um erro ao salvar seu agendamento. O link que você usou parece estar incompleto.");
+        // Revert UI update if the link is invalid
+        setAppointments(prev => prev.filter(apt => apt.id !== newAppointment.id));
+        return;
+      }
+  
+      // Load the specific admin's data, add the new appointment, and save it back
+      db.loadData(targetStoreId).then(async (storeData) => {
+        const updatedAppointments = [...storeData.appointments, newAppointment];
+        await db.saveData(targetStoreId, { ...storeData, appointments: updatedAppointments });
+      }).catch(err => {
+        console.error("Error saving appointment for store:", targetStoreId, err);
+        alert("Não foi possível salvar seu agendamento. Verifique o link e tente novamente.");
+        // Revert UI update on save error
+        setAppointments(prev => prev.filter(apt => apt.id !== newAppointment.id));
+      });
     }
   };
 
