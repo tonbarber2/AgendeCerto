@@ -1,413 +1,324 @@
 
-import { AdminUser, Appointment, BusinessProfile, Professional, Service, PlanType, Product, ClientPlan } from "../types";
+import { AdminUser, Appointment, BusinessProfile, Professional, Service, PlanType, Product, ClientPlan, Subscription } from "../types";
 import { SERVICES as DEFAULT_SERVICES, PROFESSIONALS as DEFAULT_PROFESSIONALS, DEFAULT_BUSINESS_HOURS } from "../constants";
 
 // CONFIGURAÇÃO DO SERVIDOR
 // Para produção, altere para a URL da sua API real (ex: 'https://api.seusite.com')
 // Se deixado vazio ou como 'mock', usará o armazenamento local do navegador (localStorage)
-const API_URL = ''; 
+const API_URL = '';
 
-// Default Profile Template (Premium Gold Theme)
-const DEFAULT_PROFILE: BusinessProfile = {
-  name: 'Minha Barbearia',
-  email: 'contato@exemplo.com',
-  phone: '(00) 0000-0000',
-  logo: null,
-  backgroundImage: null,
-  pixKey: '00.000.000/0001-00',
-  whatsapp: '+55',
-  address: '',
-  openingHours: DEFAULT_BUSINESS_HOURS,
-  notificationSound: true,
-  selectedSound: 'Padrão (Digital)',
-  fontFamily: 'Inter',
-  colors: {
-    primary: '#D4AF37',   // Metallic Gold
-    secondary: '#F3E5AB', // Champagne
-    background: '#f9fafb', // Light mode bg (Dark mode handled by index.html)
-    listTitle: '#111827',
-    listPrice: '#D4AF37',
-    listInfo: '#6b7280',
-    textPrimary: '#111827',
-    textSecondary: '#6b7280'
-  }
-};
+// Logo Padrão para o Administrador (Ton Barber)
+const ADMIN_LOGO_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAACXBIWXMAAAsTAAALEwEAmpwYAAAAB3RJTUUH6AYbFQsNVnLppgAAgABJREFUeF7t3e93Hdd55/3/x2S+Zz/ZzWaTZT/ZzWbZJtkmZcuWkCVLshRpsiwpWbKUTbJsybIk2Sb/jQkks2uSSaKZzc3M5O4+v5+Pq5mZCcSMdO/T5/O8noBEIpGA/4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA-';
 
-interface AppData {
-  profile: BusinessProfile;
-  appointments: Appointment[];
-  professionals: Professional[];
-  services: Service[];
-  products: Product[];
-  clientPlans: ClientPlan[];
+// This interface is for the data structure we'll store per user
+interface UserData {
+    profile: BusinessProfile;
+    appointments: Appointment[];
+    professionals: Professional[];
+    services: Service[];
+    products: Product[];
+    clientPlans: ClientPlan[];
 }
 
-// Armazenamento temporário de códigos de recuperação (em memória)
-const recoveryCodes = new Map<string, string>();
 
-export const db = {
-  
-  // --- Helper: Verifica se deve usar API Remota ---
-  useRemote: () => API_URL && API_URL !== 'mock',
+class MockDB {
+    private users: Map<string, AdminUser> = new Map();
+    private data: Map<string, UserData> = new Map();
+    private passwords: Map<string, string> = new Map(); // userId -> password
+    private resetCodes: Map<string, string> = new Map(); // email -> code
 
-  // --- Auth Methods ---
+    constructor() {
+        this.loadFromLocalStorage();
+        this.seedAdminUser();
+    }
 
-  async register(name: string, email: string, password: string, businessName: string): Promise<AdminUser> {
-    
-    // 1. Tentar registrar no Servidor Remoto
-    if (this.useRemote()) {
-        try {
-            const response = await fetch(`${API_URL}/auth/register`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, password, businessName })
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || "Erro ao registrar no servidor.");
-            }
-            
-            return await response.json();
-        } catch (error) {
-            console.error("Falha ao conectar com servidor:", error);
-            // Se falhar a conexão, lança erro para o usuário saber
-            throw error; 
+    private seedAdminUser() {
+        const adminEmail = 'ton222418@gmail.com';
+        if (this.findUserByEmail(adminEmail)) {
+            return; // Admin already exists, do nothing
         }
-    }
 
-    // 2. Fallback: Simulação Local (LocalStorage)
-    await this.delay(800); 
-    
-    const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-    const existing = users.find((u: any) => u.email === email);
-    
-    if (existing) throw new Error("E-mail já cadastrado.");
-
-    // Lógica de Assinatura:
-    // Usuário específico ganha vitalício (lifetime)
-    // Outros ganham 'trial' de 7 dias
-    const isLifetimeUser = email.toLowerCase() === 'ton222418@gmail.com';
-    const now = new Date();
-    const trialExpiration = new Date(now);
-    trialExpiration.setDate(now.getDate() + 7); // Adiciona 7 dias
-
-    const newUser: AdminUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      businessName,
-      subscription: {
-        plan: isLifetimeUser ? 'lifetime' : 'trial',
-        status: 'active',
-        startDate: now.toISOString(),
-        expiresAt: isLifetimeUser ? null : trialExpiration.toISOString()
-      }
-    };
-
-    users.push({ ...newUser, password }); 
-    localStorage.setItem('ac_users', JSON.stringify(users));
-
-    // Inicializa dados
-    await this.saveData(newUser.id, {
-      profile: { ...DEFAULT_PROFILE, name: businessName, email: email },
-      appointments: [],
-      professionals: [...DEFAULT_PROFESSIONALS],
-      services: [...DEFAULT_SERVICES],
-      products: [],
-      clientPlans: []
-    });
-
-    return newUser;
-  },
-
-  async login(email: string, password: string): Promise<AdminUser> {
-    
-    // 1. Tentar Login no Servidor Remoto
-    if (this.useRemote()) {
-        try {
-            const response = await fetch(`${API_URL}/auth/login`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
-
-            if (!response.ok) {
-                 throw new Error("Credenciais inválidas ou erro no servidor.");
-            }
-
-            const user = await response.json();
-            return user;
-        } catch (error) {
-            console.error("Erro no login remoto:", error);
-            throw error;
-        }
-    }
-
-    // 2. Fallback: Login Local
-    await this.delay(800);
-    
-    const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-    const userIndex = users.findIndex((u: any) => u.email === email && u.password === password);
-
-    if (userIndex === -1) throw new Error("Credenciais inválidas.");
-
-    let user = users[userIndex];
-
-    // --- CORREÇÃO DE DADOS LEGADOS (Subscription Missing) ---
-    // Se o usuário foi criado antes da funcionalidade de assinatura, adicionamos uma default.
-    if (!user.subscription) {
-        const now = new Date();
-        const trialExpiration = new Date(now);
-        trialExpiration.setDate(now.getDate() + 7);
-
-        user.subscription = {
-            plan: 'trial',
-            status: 'active',
-            startDate: now.toISOString(),
-            expiresAt: trialExpiration.toISOString()
-        };
-        
-        // Atualiza no storage para corrigir permanentemente
-        users[userIndex] = user;
-        localStorage.setItem('ac_users', JSON.stringify(users));
-    }
-
-    // --- CORREÇÃO VITALÍCIA ---
-    // Se for o email do administrador mestre, força o plano lifetime e status active
-    if (user.email.toLowerCase() === 'ton222418@gmail.com') {
-        if (user.subscription.plan !== 'lifetime' || user.subscription.status !== 'active') {
-            user.subscription = {
+        const adminId = 'admin_ton_permanent'; // Static ID
+        const adminUser: AdminUser = {
+            id: adminId,
+            name: 'Ton Barber',
+            email: adminEmail,
+            businessName: 'Ton Barber Barbearia',
+            subscription: {
                 plan: 'lifetime',
                 status: 'active',
                 startDate: new Date().toISOString(),
-                expiresAt: null
-            };
-            users[userIndex] = user;
-            localStorage.setItem('ac_users', JSON.stringify(users));
-        }
-    }
-
-    // --- VERIFICAÇÃO DE EXPIRAÇÃO ---
-    // Se não for vitalício, verifica se o prazo (7 dias ou plano anual/semestral) venceu
-    if (user.subscription.plan !== 'lifetime' && user.subscription.expiresAt) {
-        const expiryDate = new Date(user.subscription.expiresAt);
-        if (new Date() > expiryDate) {
-            user.subscription.status = 'expired';
-            users[userIndex] = user;
-            localStorage.setItem('ac_users', JSON.stringify(users));
-        }
-    }
-
-    const { password: _, ...safeUser } = user;
-    return safeUser;
-  },
-
-  async requestPasswordReset(email: string): Promise<string> {
-    await this.delay(1000);
-    
-    const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-    const user = users.find((u: any) => u.email === email);
-    
-    if (!user) throw new Error("Usuário não encontrado.");
-
-    const storageKey = `ac_data_${user.id}`;
-    const userDataStr = localStorage.getItem(storageKey);
-    let phone = "";
-    
-    if (userDataStr) {
-        try {
-            const userData = JSON.parse(userDataStr);
-            phone = userData.profile?.whatsapp || userData.profile?.phone || "";
-        } catch (e) {
-            console.error("Dados corrompidos ao recuperar senha");
-        }
-    }
-
-    if (!phone || phone.length < 8) {
-        throw new Error("Nenhum telefone válido cadastrado para este usuário. Entre em contato com o suporte.");
-    }
-
-    const code = Math.floor(1000 + Math.random() * 9000).toString();
-    recoveryCodes.set(email, code);
-
-    const maskedPhone = phone.replace(/.(?=.{4})/g, '*');
-
-    alert(`[SIMULAÇÃO SMS] Seu código de recuperação é: ${code}`);
-    console.log(`Código para ${email}: ${code}`);
-
-    return maskedPhone;
-  },
-
-  async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<void> {
-      await this.delay(1000);
-      
-      const storedCode = recoveryCodes.get(email);
-      if (!storedCode || storedCode !== code) {
-          throw new Error("Código inválido ou expirado.");
-      }
-
-      const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-      const userIndex = users.findIndex((u: any) => u.email === email);
-
-      if (userIndex === -1) throw new Error("Usuário não encontrado.");
-
-      users[userIndex].password = newPassword;
-      localStorage.setItem('ac_users', JSON.stringify(users));
-      
-      recoveryCodes.delete(email);
-  },
-
-  async renewSubscription(userId: string, plan: PlanType): Promise<AdminUser> {
-      // Server Logic
-      if (this.useRemote()) {
-          const response = await fetch(`${API_URL}/users/${userId}/subscription`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ plan })
-          });
-          if (!response.ok) throw new Error("Erro ao renovar assinatura.");
-          return await response.json();
-      }
-
-      // Local Logic
-      await this.delay(1000);
-      const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-      const userIndex = users.findIndex((u: any) => u.id === userId);
-      
-      if (userIndex === -1) throw new Error("Usuário não encontrado.");
-
-      const now = new Date();
-      const newExpiration = new Date();
-
-      // Configuração dos Prazos dos Planos
-      if (plan === 'monthly') newExpiration.setDate(now.getDate() + 30);
-      else if (plan === 'semiannual') newExpiration.setDate(now.getDate() + 180); // 6 meses
-      else if (plan === 'annual') newExpiration.setDate(now.getDate() + 365); // 1 ano
-      
-      const user = users[userIndex];
-      user.subscription = {
-          plan: plan,
-          status: 'active',
-          startDate: now.toISOString(),
-          expiresAt: newExpiration.toISOString()
-      };
-
-      users[userIndex] = user;
-      localStorage.setItem('ac_users', JSON.stringify(users));
-
-      const { password: _, ...safeUser } = user;
-      return safeUser;
-  },
-
-  // --- Data Methods (Sync) ---
-
-  async loadData(userId: string): Promise<AppData> {
-    if (this.useRemote()) {
-        try {
-            const response = await fetch(`${API_URL}/data/${userId}`);
-            if (response.ok) {
-                const data = await response.json();
-                return this.normalizeData(data);
+                expiresAt: null, // Lifetime plan
             }
-        } catch (e) {
-            console.warn("Erro ao carregar do servidor, tentando local...");
-        }
-    }
+        };
 
-    await this.delay(500);
-    const storageKey = `ac_data_${userId}`;
-    const data = localStorage.getItem(storageKey);
-    
-    if (!data) {
-      return {
-        profile: DEFAULT_PROFILE,
-        appointments: [],
-        professionals: DEFAULT_PROFESSIONALS,
-        services: DEFAULT_SERVICES,
-        products: [],
-        clientPlans: []
-      };
-    }
+        this.users.set(adminId, adminUser);
+        this.passwords.set(adminId, '123456'); // Default password
 
-    try {
-        return this.normalizeData(JSON.parse(data));
-    } catch (e) {
-        console.error("Erro ao analisar dados do localStorage:", e);
-        // Em caso de corrupção, retorna defaults
-        return {
-            profile: DEFAULT_PROFILE,
+        const defaultData: UserData = {
+            profile: {
+                name: 'Ton Barber Barbearia',
+                email: adminEmail,
+                phone: '',
+                logo: ADMIN_LOGO_BASE64,
+                backgroundImage: null,
+                pixKey: '71986073552',
+                whatsapp: '71986073552',
+                address: '',
+                openingHours: DEFAULT_BUSINESS_HOURS,
+                notificationSound: true,
+                selectedSound: 'Padrão (Digital)',
+                fontFamily: 'Inter',
+                colors: {
+                    primary: '#D4AF37',
+                    secondary: '#F3E5AB',
+                    background: '#f9fafb',
+                    listTitle: '#111827',
+                    listPrice: '#D4AF37',
+                    listInfo: '#6b7280',
+                    textPrimary: '#111827',
+                    textSecondary: '#6b7280'
+                }
+            },
             appointments: [],
             professionals: DEFAULT_PROFESSIONALS,
             services: DEFAULT_SERVICES,
             products: [],
-            clientPlans: []
+            clientPlans: [],
         };
+        this.data.set(adminId, defaultData);
+        this.saveToLocalStorage();
     }
-  },
 
-  async saveData(userId: string, data: AppData): Promise<void> {
-    if (this.useRemote()) {
+    private loadFromLocalStorage() {
         try {
-             await fetch(`${API_URL}/data/${userId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            });
+            const usersData = localStorage.getItem('db_users');
+            const appData = localStorage.getItem('db_data');
+            const passwordsData = localStorage.getItem('db_passwords');
+
+            if (usersData) {
+                this.users = new Map(JSON.parse(usersData));
+            }
+            if (appData) {
+                this.data = new Map(JSON.parse(appData));
+            }
+            if (passwordsData) {
+                this.passwords = new Map(JSON.parse(passwordsData));
+            }
+
         } catch (e) {
-            console.error("Erro ao salvar no servidor:", e);
+            console.error("Failed to load data from localStorage", e);
+            this.users = new Map();
+            this.data = new Map();
+            this.passwords = new Map();
         }
     }
 
-    const storageKey = `ac_data_${userId}`;
-    localStorage.setItem(storageKey, JSON.stringify(data));
-  },
-
-  normalizeData(data: any): AppData {
-      return {
-        ...data,
-        profile: data.profile || DEFAULT_PROFILE,
-        appointments: data.appointments || [],
-        professionals: data.professionals || DEFAULT_PROFESSIONALS,
-        services: data.services || DEFAULT_SERVICES,
-        products: data.products || [],
-        clientPlans: data.clientPlans || []
-      };
-  },
-
-  async loadPublicData(storeId?: string | null): Promise<AppData> {
-    if (this.useRemote()) {
+    private saveToLocalStorage() {
         try {
-            const endpoint = storeId ? `${API_URL}/public/store/${storeId}` : `${API_URL}/public/store`;
-            const response = await fetch(endpoint);
-            if (response.ok) return this.normalizeData(await response.json());
-        } catch (e) { console.warn("Erro carregando dados públicos remotos"); }
+            localStorage.setItem('db_users', JSON.stringify(Array.from(this.users.entries())));
+            localStorage.setItem('db_data', JSON.stringify(Array.from(this.data.entries())));
+            localStorage.setItem('db_passwords', JSON.stringify(Array.from(this.passwords.entries())));
+        } catch (e) {
+            console.error("Failed to save data to localStorage", e);
+        }
     }
 
-    const users = JSON.parse(localStorage.getItem('ac_users') || '[]');
-    let targetUser = null;
-
-    if (storeId) {
-        targetUser = users.find((u: any) => u.id === storeId);
-    } else if (users.length > 0) {
-        targetUser = users[users.length - 1];
+    private findUserByEmail(email: string): AdminUser | undefined {
+        for (const user of this.users.values()) {
+            if (user.email.toLowerCase() === email.toLowerCase()) {
+                return user;
+            }
+        }
+        return undefined;
     }
 
-    if (targetUser) {
-      return this.loadData(targetUser.id);
+    async register(name: string, email: string, password: string, businessName: string): Promise<AdminUser> {
+        if (this.findUserByEmail(email)) {
+            throw new Error("Este e-mail já está em uso.");
+        }
+        
+        const id = Date.now().toString();
+        const trialEndDate = new Date();
+        trialEndDate.setDate(trialEndDate.getDate() + 7); // 7-day trial
+
+        const newUser: AdminUser = {
+            id,
+            name,
+            email,
+            businessName,
+            subscription: {
+                plan: 'trial',
+                status: 'active',
+                startDate: new Date().toISOString(),
+                expiresAt: trialEndDate.toISOString(),
+            }
+        };
+
+        this.users.set(id, newUser);
+        this.passwords.set(id, password);
+
+        const defaultData: UserData = {
+            profile: {
+                name: businessName,
+                email: email,
+                phone: '',
+                logo: ADMIN_LOGO_BASE64,
+                backgroundImage: null,
+                pixKey: '71986073552',
+                whatsapp: '71986073552',
+                address: '',
+                openingHours: DEFAULT_BUSINESS_HOURS,
+                notificationSound: true,
+                selectedSound: 'Padrão (Digital)',
+                fontFamily: 'Inter',
+                colors: {
+                    primary: '#D4AF37',
+                    secondary: '#F3E5AB',
+                    background: '#f9fafb',
+                    listTitle: '#111827',
+                    listPrice: '#D4AF37',
+                    listInfo: '#6b7280',
+                    textPrimary: '#111827',
+                    textSecondary: '#6b7280'
+                }
+            },
+            appointments: [],
+            professionals: DEFAULT_PROFESSIONALS,
+            services: DEFAULT_SERVICES,
+            products: [],
+            clientPlans: [],
+        };
+        this.data.set(id, defaultData);
+        this.saveToLocalStorage();
+        return { ...newUser };
+    }
+
+    async login(email: string, password: string): Promise<AdminUser> {
+        const user = this.findUserByEmail(email);
+        
+        if (!user || this.passwords.get(user.id) !== password) {
+            throw new Error("E-mail ou senha inválidos.");
+        }
+        
+        if (user.subscription.expiresAt && new Date(user.subscription.expiresAt) < new Date()) {
+            user.subscription.status = 'expired';
+            this.users.set(user.id, user);
+            this.saveToLocalStorage();
+        }
+
+        return { ...user };
     }
     
-    return {
-      profile: DEFAULT_PROFILE,
-      appointments: [],
-      professionals: DEFAULT_PROFESSIONALS,
-      services: DEFAULT_SERVICES,
-      products: [],
-      clientPlans: []
-    };
-  },
+    async requestPasswordReset(email: string): Promise<string> {
+        const user = this.findUserByEmail(email);
+        if (!user) {
+            // Don't reveal if email exists for security, but in mock we can throw
+            throw new Error("E-mail não encontrado.");
+        }
+        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        this.resetCodes.set(email.toLowerCase(), code);
+        console.log(`Password reset code for ${email}: ${code}`); // Simulate sending SMS
+        return "******-**99"; // Fake masked number
+    }
 
-  delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  }
-};
+    async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<void> {
+        if (this.resetCodes.get(email.toLowerCase()) !== code) {
+            throw new Error("Código de verificação inválido.");
+        }
+        const user = this.findUserByEmail(email);
+        if (user) {
+            this.passwords.set(user.id, newPassword);
+            this.resetCodes.delete(email.toLowerCase());
+            this.saveToLocalStorage();
+        } else {
+            throw new Error("Usuário não encontrado.");
+        }
+    }
+
+    async loadData(userId: string): Promise<UserData> {
+        const userData = this.data.get(userId);
+        if (userData) {
+            return JSON.parse(JSON.stringify(userData)); // Deep copy to prevent mutation
+        }
+        throw new Error("Dados do usuário não encontrados.");
+    }
+
+    async loadPublicData(userId: string | null): Promise<UserData> {
+        if (!userId) {
+            // Return some default data if no store id is provided
+             return {
+                profile: {
+                    name: "Agende Certo",
+                    email: '',
+                    phone: '',
+                    logo: ADMIN_LOGO_BASE64,
+                    backgroundImage: null,
+                    pixKey: '71986073552',
+                    whatsapp: '71986073552',
+                    address: '',
+                    openingHours: DEFAULT_BUSINESS_HOURS,
+                    notificationSound: true,
+                    selectedSound: 'Padrão (Digital)',
+                    fontFamily: 'Inter',
+                    colors: {
+                        primary: '#D4AF37',
+                        secondary: '#F3E5AB',
+                        background: '#f9fafb',
+                        listTitle: '#111827',
+                        listPrice: '#D4AF37',
+                        listInfo: '#6b7280',
+                        textPrimary: '#111827',
+                        textSecondary: '#6b7280'
+                    }
+                },
+                appointments: [],
+                professionals: DEFAULT_PROFESSIONALS,
+                services: DEFAULT_SERVICES,
+                products: [],
+                clientPlans: [],
+            };
+        }
+        return this.loadData(userId);
+    }
+    
+    async saveData(userId: string, dataToSave: Partial<UserData>): Promise<void> {
+        const existingData = this.data.get(userId);
+        if (!existingData) {
+            throw new Error("Não é possível salvar, dados do usuário não existem.");
+        }
+        
+        const updatedData = { ...existingData, ...dataToSave };
+        this.data.set(userId, updatedData);
+        this.saveToLocalStorage();
+    }
+
+    async renewSubscription(userId: string, plan: PlanType): Promise<AdminUser> {
+        const user = this.users.get(userId);
+        if (!user) {
+            throw new Error("Usuário não encontrado.");
+        }
+
+        const now = new Date();
+        let expiresAt = new Date();
+        if (plan === 'monthly') expiresAt.setMonth(now.getMonth() + 1);
+        if (plan === 'semiannual') expiresAt.setMonth(now.getMonth() + 6);
+        if (plan === 'annual') expiresAt.setFullYear(now.getFullYear() + 1);
+        if (plan === 'lifetime') expiresAt = new Date('9999-12-31');
+
+        const newSubscription: Subscription = {
+            plan,
+            status: 'active',
+            startDate: now.toISOString(),
+            expiresAt: plan === 'lifetime' ? null : expiresAt.toISOString()
+        };
+        
+        user.subscription = newSubscription;
+        this.users.set(userId, user);
+        this.saveToLocalStorage();
+
+        return { ...user };
+    }
+}
+
+export const db = new MockDB();

@@ -103,16 +103,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Profile Navigation State
   const [profileView, setProfileView] = useState<'menu' | 'meus_dados' | 'horarios' | 'servicos' | 'produtos' | 'profissionais' | 'cancelados' | 'planos' | 'aparencia'>('menu');
   
-  // Local Form State (Buffer for My Data editing)
-  const [profileForm, setProfileForm] = useState<BusinessProfile>(businessProfile);
-
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
-
-  // Sync local form when external profile changes
-  useEffect(() => {
-    setProfileForm(businessProfile);
-  }, [businessProfile]);
 
   // File Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -259,11 +251,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleCopyLink = () => {
     const url = `${window.location.origin}?store=${currentUser.id}`;
     navigator.clipboard.writeText(url).then(() => alert('Link exclusivo copiado!'));
-  };
-
-  const handleSaveProfileData = () => {
-    onUpdateProfile(profileForm);
-    // Removed alert for cleaner auto-save experience
   };
 
   // --- CRUD Operations (Updated for Auto-Save) ---
@@ -942,8 +929,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div className="flex justify-center mb-6">
                         <div className="relative group cursor-pointer" onClick={() => logoInputRef.current?.click()}>
                             <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 dark:border-white/20 hover:border-primary transition-colors">
-                                {profileForm.logo ? (
-                                    <img src={profileForm.logo} alt="Logo" className="w-full h-full object-cover" />
+                                {businessProfile.logo ? (
+                                    <img src={businessProfile.logo} alt="Logo" className="w-full h-full object-cover" />
                                 ) : (
                                     <Camera className="text-gray-400" size={32} />
                                 )}
@@ -960,9 +947,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <label className="text-xs font-bold text-gray-500 uppercase">Nome do Negócio</label>
                             <input 
                                 type="text" 
-                                value={profileForm.name} 
-                                onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                onBlur={handleSaveProfileData}
+                                value={businessProfile.name || ''} 
+                                onChange={(e) => onUpdateProfile({ name: e.target.value })}
                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
                             />
                         </div>
@@ -970,9 +956,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                              <label className="text-xs font-bold text-gray-500 uppercase">WhatsApp (com DDD)</label>
                              <input 
                                  type="text" 
-                                 value={profileForm.whatsapp} 
-                                 onChange={(e) => setProfileForm({...profileForm, whatsapp: e.target.value})}
-                                 onBlur={handleSaveProfileData}
+                                 value={businessProfile.whatsapp || ''} 
+                                 onChange={(e) => onUpdateProfile({ whatsapp: e.target.value })}
                                  className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
                                  placeholder="+55 (00) 00000-0000"
                              />
@@ -981,9 +966,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                              <label className="text-xs font-bold text-gray-500 uppercase">Chave PIX</label>
                              <input 
                                  type="text" 
-                                 value={profileForm.pixKey} 
-                                 onChange={(e) => setProfileForm({...profileForm, pixKey: e.target.value})}
-                                 onBlur={handleSaveProfileData}
+                                 value={businessProfile.pixKey || ''} 
+                                 onChange={(e) => onUpdateProfile({ pixKey: e.target.value })}
                                  className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
                              />
                         </div>
@@ -991,17 +975,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                              <label className="text-xs font-bold text-gray-500 uppercase">Endereço (Opcional)</label>
                              <input 
                                  type="text" 
-                                 value={profileForm.address || ''} 
-                                 onChange={(e) => setProfileForm({...profileForm, address: e.target.value})}
-                                 onBlur={handleSaveProfileData}
+                                 value={businessProfile.address || ''} 
+                                 onChange={(e) => onUpdateProfile({ address: e.target.value })}
                                  className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
                              />
                         </div>
                     </div>
-                    
-                    <button onClick={handleSaveProfileData} className="w-full bg-primary text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 hover:bg-primary-hover transition-colors">
-                        <Save size={18} /> Salvar Alterações
-                    </button>
                 </div>
             </div>
         );
@@ -1020,8 +999,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             className="w-full h-32 rounded-xl bg-gray-100 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-white/20 flex items-center justify-center cursor-pointer overflow-hidden relative group hover:border-primary transition-colors"
                             onClick={() => bgInputRef.current?.click()}
                         >
-                            {profileForm.backgroundImage ? (
-                                <img src={profileForm.backgroundImage} className="w-full h-full object-cover opacity-80" alt="Background" />
+                            {businessProfile.backgroundImage ? (
+                                <img src={businessProfile.backgroundImage} className="w-full h-full object-cover opacity-80" alt="Background" />
                             ) : (
                                 <div className="flex flex-col items-center text-gray-400">
                                     <ImageIcon size={24} />
@@ -1044,11 +1023,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <div className="flex items-center gap-2 p-2 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-[#111]">
                                     <input 
                                         type="color" 
-                                        value={profileForm.colors.primary}
-                                        onChange={(e) => setProfileForm({...profileForm, colors: { ...profileForm.colors, primary: e.target.value }})}
+                                        value={businessProfile.colors.primary}
+                                        onChange={(e) => onUpdateProfile({ colors: { ...businessProfile.colors, primary: e.target.value }})}
                                         className="w-8 h-8 rounded-lg cursor-pointer border-none p-0"
                                     />
-                                    <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{profileForm.colors.primary}</span>
+                                    <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{businessProfile.colors.primary}</span>
                                 </div>
                             </div>
                             <div>
@@ -1056,11 +1035,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 <div className="flex items-center gap-2 p-2 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-[#111]">
                                     <input 
                                         type="color" 
-                                        value={profileForm.colors.secondary}
-                                        onChange={(e) => setProfileForm({...profileForm, colors: { ...profileForm.colors, secondary: e.target.value }})}
+                                        value={businessProfile.colors.secondary}
+                                        onChange={(e) => onUpdateProfile({ colors: { ...businessProfile.colors, secondary: e.target.value }})}
                                         className="w-8 h-8 rounded-lg cursor-pointer border-none p-0"
                                     />
-                                    <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{profileForm.colors.secondary}</span>
+                                    <span className="text-xs font-mono text-gray-600 dark:text-gray-400">{businessProfile.colors.secondary}</span>
                                 </div>
                             </div>
                         </div>
@@ -1070,8 +1049,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase block mb-3">Fonte (Tipografia)</label>
                         <select 
-                            value={profileForm.fontFamily}
-                            onChange={(e) => setProfileForm({...profileForm, fontFamily: e.target.value})}
+                            value={businessProfile.fontFamily}
+                            onChange={(e) => onUpdateProfile({ fontFamily: e.target.value })}
                             className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
                         >
                             <option value="Inter">Inter (Moderna)</option>
@@ -1081,10 +1060,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <option value="Roboto">Roboto (Padrão)</option>
                         </select>
                     </div>
-
-                    <button onClick={handleSaveProfileData} className="w-full bg-primary text-white font-bold py-3 rounded-xl mt-4 flex items-center justify-center gap-2 hover:bg-primary-hover transition-colors">
-                        <Save size={18} /> Salvar Aparência
-                    </button>
                 </div>
             </div>
         );
@@ -1141,16 +1116,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                 <div className="space-y-3">
                     {services.map(service => (
-                        <div key={service.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex gap-4">
-                            <img src={service.image} className="w-16 h-16 rounded-lg object-cover bg-gray-100" />
-                            <div className="flex-1">
-                                <h3 className="font-bold text-gray-900 dark:text-white">{service.name}</h3>
-                                <p className="text-xs text-gray-500 mb-1">{service.duration} min • R$ {service.price.toFixed(2)}</p>
-                                {service.deposit ? <p className="text-xs text-primary font-semibold">Sinal: R$ {service.deposit.toFixed(2)}</p> : null}
-                                <div className="flex gap-2 mt-2">
-                                    <button onClick={() => setEditingService(service)} className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded">Editar</button>
-                                    <button onClick={() => handleDeleteService(service.id)} className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 px-2 py-1 rounded">Excluir</button>
-                                </div>
+                        <div key={service.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
+                            <h3 className="font-bold text-gray-900 dark:text-white">{service.name}</h3>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{service.duration} min • R$ {service.price.toFixed(2)}</p>
+                            {service.deposit && service.deposit > 0 && 
+                                <p className="text-sm text-yellow-500 font-semibold mt-1">Sinal: R$ {service.deposit.toFixed(2)}</p>
+                            }
+                            <div className="flex gap-2 mt-4">
+                                <button onClick={() => setEditingService(service)} className="text-xs font-medium bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-1.5 rounded-md hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors">Editar</button>
+                                <button onClick={() => handleDeleteService(service.id)} className="text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 px-3 py-1.5 rounded-md hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors">Excluir</button>
                             </div>
                         </div>
                     ))}
@@ -1317,69 +1291,49 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const dayLabels: {[key: string]: string} = { monday: 'Segunda', tuesday: 'Terça', wednesday: 'Quarta', thursday: 'Quinta', friday: 'Sexta', saturday: 'Sábado', sunday: 'Domingo' };
         
         const toggleDay = (day: keyof BusinessHours) => {
-            const current = profileForm.openingHours[day];
-            const updatedProfile = {
-                ...profileForm,
-                openingHours: {
-                    ...profileForm.openingHours,
-                    [day]: { ...current, isOpen: !current.isOpen }
-                }
+            const current = businessProfile.openingHours[day];
+            const updatedHours = {
+                ...businessProfile.openingHours,
+                [day]: { ...current, isOpen: !current.isOpen }
             };
-            setProfileForm(updatedProfile);
-            onUpdateProfile(updatedProfile); // Immediate save
+            onUpdateProfile({ openingHours: updatedHours });
         };
 
         const updateTime = (day: keyof BusinessHours, index: number, field: 'start' | 'end', value: string) => {
-             const currentDay = profileForm.openingHours[day];
-             const newIntervals = [...currentDay.intervals];
-             // Ensure element exists before assigning (safety check)
+            const currentDay = businessProfile.openingHours[day];
+            const newIntervals = [...currentDay.intervals];
              if (newIntervals[index]) {
                  newIntervals[index] = { ...newIntervals[index], [field]: value };
-             } else {
-                 // Fallback if index doesn't exist (unlikely but safe)
-                 newIntervals[index] = { start: '09:00', end: '18:00', [field]: value };
              }
              
-             const updatedProfile = {
-                ...profileForm,
-                openingHours: {
-                    ...profileForm.openingHours,
-                    [day]: { ...currentDay, intervals: newIntervals }
-                }
+            const updatedHours = {
+                ...businessProfile.openingHours,
+                [day]: { ...currentDay, intervals: newIntervals }
             };
-            setProfileForm(updatedProfile);
-            onUpdateProfile(updatedProfile); // Immediate save
+            onUpdateProfile({ openingHours: updatedHours });
         };
 
         const addInterval = (day: keyof BusinessHours) => {
-            const currentDay = profileForm.openingHours[day];
+            const currentDay = businessProfile.openingHours[day];
             const newInterval = { start: '12:00', end: '13:00' };
             const newIntervals = [...currentDay.intervals, newInterval];
             
-            const updatedProfile = {
-                ...profileForm,
-                openingHours: {
-                    ...profileForm.openingHours,
-                    [day]: { ...currentDay, intervals: newIntervals }
-                }
+            const updatedHours = {
+                ...businessProfile.openingHours,
+                [day]: { ...currentDay, intervals: newIntervals }
             };
-            setProfileForm(updatedProfile);
-            onUpdateProfile(updatedProfile);
+            onUpdateProfile({ openingHours: updatedHours });
         };
 
         const removeInterval = (day: keyof BusinessHours, index: number) => {
-            const currentDay = profileForm.openingHours[day];
+            const currentDay = businessProfile.openingHours[day];
             const newIntervals = currentDay.intervals.filter((_, i) => i !== index);
             
-            const updatedProfile = {
-                ...profileForm,
-                openingHours: {
-                    ...profileForm.openingHours,
-                    [day]: { ...currentDay, intervals: newIntervals }
-                }
+            const updatedHours = {
+                ...businessProfile.openingHours,
+                [day]: { ...currentDay, intervals: newIntervals }
             };
-            setProfileForm(updatedProfile);
-            onUpdateProfile(updatedProfile);
+            onUpdateProfile({ openingHours: updatedHours });
         };
 
         return (
@@ -1387,7 +1341,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {renderHeaderBack('Horário de Funcionamento')}
                 <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5">
                     {days.map(day => {
-                        const schedule = profileForm.openingHours[day];
+                        const schedule = businessProfile.openingHours[day];
 
                         return (
                             <div key={day} className="p-4 flex flex-col gap-3">
@@ -1440,10 +1394,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         );
                     })}
                 </div>
-                {/* Save button kept for visual confirmation/closing, but data is saved in real-time */}
-                <button onClick={handleSaveProfileData} className="w-full bg-primary text-white font-bold py-3 rounded-xl mt-6 flex items-center justify-center gap-2">
-                    <Save size={18} /> Salvar Horários
-                </button>
             </div>
         );
     }

@@ -9,6 +9,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { SubscriptionScreen } from './components/SubscriptionScreen';
 import { db } from './services/db';
 import { DEFAULT_BUSINESS_HOURS } from './constants';
+import { CheckCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('LANDING');
@@ -32,6 +33,9 @@ const App: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [clientPlans, setClientPlans] = useState<ClientPlan[]>([]);
   const [categories, setCategories] = useState<ServiceCategory[]>([]);
+
+  // --- UI State ---
+  const [toastMessage, setToastMessage] = useState('');
 
   const [businessProfile, setBusinessProfile] = useState<BusinessProfile>({
     name: '',
@@ -116,19 +120,42 @@ const App: React.FC = () => {
     initData();
   }, [currentUser]);
 
-  // Persist Data Changes (Sync with Server)
+  // Persist Data Changes (Debounced with feedback)
   useEffect(() => {
-    if (currentUser && isDataLoaded && currentUser.subscription?.status === 'active') {
-        db.saveData(currentUser.id, {
-            profile: businessProfile,
-            appointments,
-            professionals,
-            services,
-            products,
-            clientPlans
-        });
+    // Don't save if not logged in, not loaded, or subscription expired
+    if (!currentUser || !isDataLoaded || currentUser.subscription?.status !== 'active') {
+      return;
     }
-  }, [businessProfile, appointments, professionals, services, products, clientPlans, currentUser, isDataLoaded]);
+
+    // Set up the debounced save
+    const handler = setTimeout(() => {
+      db.saveData(currentUser.id, {
+        profile: businessProfile,
+        appointments,
+        professionals,
+        services,
+        products,
+        clientPlans
+      }).then(() => {
+        setToastMessage('Alterações salvas!');
+      });
+    }, 1000); // 1-second delay
+
+    // Clear the timeout if the dependencies change again before the delay is over
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [businessProfile, appointments, professionals, services, products, clientPlans]);
+
+  // Toast visibility handler
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => {
+        setToastMessage('');
+      }, 3000); // Hide after 3 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
 
   // Check URL params for direct booking link (Professional Deep Link)
   useEffect(() => {
@@ -325,6 +352,7 @@ const App: React.FC = () => {
             pixKey={businessProfile.pixKey}
             adminPhone={businessProfile.whatsapp}
             appointments={appointments}
+            businessProfile={businessProfile}
           />
         );
       case 'LANDING':
@@ -346,6 +374,16 @@ const App: React.FC = () => {
     <>
       {renderView()}
       {view !== 'ADMIN' && view !== 'AUTH' && view !== 'SUBSCRIPTION' && <AIReceptionist />}
+      
+      {/* Save Confirmation Toast */}
+      {toastMessage && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ease-out animate-fade-in-up">
+            <div className="bg-gray-800 text-white px-4 py-3 rounded-full shadow-lg flex items-center gap-2 text-sm font-medium">
+                <CheckCircle size={18} className="text-green-400" />
+                <span>{toastMessage}</span>
+            </div>
+        </div>
+      )}
     </>
   );
 };

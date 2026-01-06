@@ -23,7 +23,8 @@ import {
   BookingStep, 
   DayOption, 
   UserDetails,
-  Appointment
+  Appointment,
+  BusinessProfile
 } from '../types';
 
 interface BookingFlowProps {
@@ -36,6 +37,7 @@ interface BookingFlowProps {
   pixKey?: string;
   adminPhone?: string;
   appointments: Appointment[];
+  businessProfile: BusinessProfile;
 }
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ 
@@ -47,7 +49,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   preSelectedProId,
   pixKey = "000.000.000-00", // Default fallback
   adminPhone,
-  appointments
+  appointments,
+  businessProfile
 }) => {
   // Helpers
   const dayOptions = getNextDays(14);
@@ -226,6 +229,20 @@ Nome: ${userDetails.name}
       </div>
     );
   };
+
+  const renderProfileHeader = () => (
+    <div className="px-4 mb-6 -mt-2">
+      <div className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-4 max-w-2xl mx-auto">
+        {businessProfile.logo && (
+          <img src={businessProfile.logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-secondary" />
+        )}
+        <div>
+          <p className="text-xs text-c-text-secondary dark:text-gray-400">Você está agendando em</p>
+          <h2 className="text-lg font-bold text-c-text-primary dark:text-white">{businessProfile.name}</h2>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderServices = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 px-4 pb-24 max-w-2xl mx-auto">
@@ -593,6 +610,8 @@ Nome: ${userDetails.name}
       </div>
 
       {step !== BookingStep.CONFIRMATION && renderStepIndicator()}
+
+      {step < BookingStep.CONFIRMATION && businessProfile.name && renderProfileHeader()}
 
       <div className="max-w-3xl mx-auto pt-4">
         {step === BookingStep.SERVICE && renderServices()}
