@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ViewState, Theme, BusinessProfile, Appointment, Professional, Service, AdminUser, Product, ClientPlan, ServiceCategory } from './types';
 import { AdminDashboard } from './components/AdminDashboard';
 import { LandingPage } from './components/LandingPage';
@@ -49,6 +49,7 @@ const App: React.FC = () => {
     openingHours: DEFAULT_BUSINESS_HOURS,
     notificationSound: true,
     selectedSound: 'Padrão (Digital)',
+    desktopNotifications: true,
     fontFamily: 'Inter',
     colors: {
         primary: '#D4AF37',   // Gold
@@ -62,7 +63,69 @@ const App: React.FC = () => {
     }
   });
 
+  // --- State Persistence Logic ---
+  
+  // Ref para manter o estado mais recente e permitir salvamentos instantâneos ao sair.
+  const latestStateRef = useRef({
+    currentUser,
+    isDataLoaded,
+    businessProfile,
+    appointments,
+    professionals,
+    services,
+    products,
+    clientPlans,
+  });
+
+  // Mantém o ref atualizado a cada renderização.
+  useEffect(() => {
+    latestStateRef.current = {
+      currentUser,
+      isDataLoaded,
+      businessProfile,
+      appointments,
+      professionals,
+      services,
+      products,
+      clientPlans,
+    };
+  });
+
+  // Função para salvar o estado atual de forma síncrona.
+  const saveCurrentState = () => {
+    const state = latestStateRef.current;
+    if (!state.currentUser || !state.isDataLoaded || state.currentUser.subscription?.status !== 'active') {
+      return;
+    }
+    db.saveData(state.currentUser.id, {
+      profile: state.businessProfile,
+      appointments: state.appointments,
+      professionals: state.professionals,
+      services: state.services,
+      products: state.products,
+      clientPlans: state.clientPlans,
+    });
+  };
+
   // --- Initialization & Data Loading ---
+  
+  // Verifica se o admin principal já está logado ao carregar o app
+  useEffect(() => {
+    try {
+      const savedUserJSON = localStorage.getItem('loggedInAdminUser');
+      if (savedUserJSON) {
+        const savedUser = JSON.parse(savedUserJSON) as AdminUser;
+        // Mantém logado apenas o usuário admin específico
+        if (savedUser && savedUser.email === 'ton222418@gmail.com') {
+          setCurrentUser(savedUser);
+        }
+      }
+    } catch (error) {
+      console.error("Falha ao carregar usuário do localStorage:", error);
+      localStorage.removeItem('loggedInAdminUser');
+    }
+  }, []); // Executa apenas uma vez na montagem do componente
+
 
   // Load Data on Startup (Public or Private)
   useEffect(() => {
@@ -88,8 +151,10 @@ const App: React.FC = () => {
                 }
                 data = await db.loadData(currentUser.id);
             } else {
-                // If visitor, load public data based on URL param or default
-                data = await db.loadPublicData(storeIdFromUrl);
+                // Se for um visitante, carrega os dados públicos com base no parâmetro da URL
+                // ou assume a loja principal do administrador como padrão.
+                const targetStoreId = storeIdFromUrl || 'admin_ton_permanent';
+                data = await db.loadPublicData(targetStoreId);
             }
 
             if (data) {
@@ -122,26 +187,16 @@ const App: React.FC = () => {
 
   // Persist Data Changes (Debounced with feedback)
   useEffect(() => {
-    // Don't save if not logged in, not loaded, or subscription expired
-    if (!currentUser || !isDataLoaded || currentUser.subscription?.status !== 'active') {
+    const state = latestStateRef.current;
+    if (!state.currentUser || !state.isDataLoaded || state.currentUser.subscription?.status !== 'active') {
       return;
     }
 
-    // Set up the debounced save
     const handler = setTimeout(() => {
-      db.saveData(currentUser.id, {
-        profile: businessProfile,
-        appointments,
-        professionals,
-        services,
-        products,
-        clientPlans
-      }).then(() => {
-        setToastMessage('Alterações salvas!');
-      });
-    }, 1000); // 1-second delay
+      saveCurrentState();
+      setToastMessage('Alterações salvas!');
+    }, 1000);
 
-    // Clear the timeout if the dependencies change again before the delay is over
     return () => {
       clearTimeout(handler);
     };
@@ -200,6 +255,77 @@ const App: React.FC = () => {
     }
   }, [businessProfile.colors, businessProfile.fontFamily, theme]);
 
+  // Automatic Reminder Sender
+  useEffect(() => {
+    const reminderInterval = setInterval(() => {
+        const now = new Date();
+        
+        // Helper function to parse date and time from strings
+        const parseAppointmentDateTime = (dateStr: string, timeStr: string): Date | null => {
+            try {
+                const [hour, minute] = timeStr.split(':').map(Number);
+                let appointmentDate = new Date();
+
+                if (dateStr.toLowerCase() === 'hoje') {
+                    // Date is already today, no change needed
+                } else if (dateStr.includes('/')) {
+                    const [day, month] = dateStr.split('/').map(Number);
+                    const currentYear = new Date().getFullYear();
+                    appointmentDate.setFullYear(currentYear, month - 1, day);
+                } else {
+                    return null; // Unrecognized format
+                }
+                
+                appointmentDate.setHours(hour, minute, 0, 0);
+                return appointmentDate;
+
+            } catch (error) {
+                console.error("Error parsing appointment date/time:", error);
+                return null;
+            }
+        };
+
+        const appointmentsToRemind = appointments.filter(apt => {
+            if (apt.status !== 'confirmado' || apt.reminderSent) {
+                return false;
+            }
+
+            const appointmentDateTime = parseAppointmentDateTime(apt.date, apt.time);
+            if (!appointmentDateTime) {
+                return false;
+            }
+
+            const diffInMinutes = (appointmentDateTime.getTime() - now.getTime()) / (1000 * 60);
+            
+            // Send reminder if it's 30 minutes or less away (but not in the past)
+            return diffInMinutes > 0 && diffInMinutes <= 30;
+        });
+
+        if (appointmentsToRemind.length > 0) {
+            appointmentsToRemind.forEach(apt => {
+                 const phone = apt.phone ? apt.phone.replace(/\D/g, '') : '';
+                 if (phone.length >= 10) {
+                     const message = `Olá ${apt.client}! Lembrete: seu agendamento é em 30 minutos. Estamos te esperando! 😉`;
+                     const url = `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
+                     window.open(url, '_blank');
+                 }
+            });
+
+            // Mark these appointments as having their reminder sent
+            const remindedIds = new Set(appointmentsToRemind.map(a => a.id));
+            setAppointments(prev => 
+                prev.map(apt => 
+                    remindedIds.has(apt.id) ? { ...apt, reminderSent: true } : apt
+                )
+            );
+        }
+    }, 60000); // Check every minute
+
+    // Cleanup interval on component unmount
+    return () => clearInterval(reminderInterval);
+
+  }, [appointments]);
+
   // --- Actions ---
 
   const toggleTheme = () => {
@@ -212,30 +338,35 @@ const App: React.FC = () => {
   };
 
   const handleNewBooking = (newAppointment: Appointment) => {
-    // Optimistic UI update
     setAppointments(prev => [...prev, newAppointment]);
   
-    // If it's a client booking (not a logged-in admin)
+    // Se o admin estiver logado, o useEffect de persistência já vai salvar os dados.
+    // A lógica abaixo é executada apenas para agendamentos feitos por clientes (público).
     if (!currentUser) {
-      const targetStoreId = publicStoreId;
+      // Tenta obter o ID da loja do link compartilhado (ex: ?store=ID_DA_LOJA).
+      // Se não houver um ID no link, o sistema assume o agendamento
+      // para a loja principal, associada ao e-mail ton222418@gmail.com.
+      const targetStoreId = publicStoreId || 'admin_ton_permanent';
   
-      // Ensure booking is only saved if accessed via a valid, exclusive link
       if (!targetStoreId) {
-        console.error("Booking failed: No store ID specified in the URL for a public user.");
-        alert("Ocorreu um erro ao salvar seu agendamento. O link que você usou parece estar incompleto.");
-        // Revert UI update if the link is invalid
+        // Este caso agora é improvável, mas serve como uma salvaguarda.
+        console.error("Falha no agendamento: ID da loja não pôde ser determinado.");
+        alert("Ocorreu um erro ao salvar seu agendamento. O link que você usou parece estar incompleto ou inválido.");
+        // Reverte a adição otimista do agendamento que foi feita no início da função.
         setAppointments(prev => prev.filter(apt => apt.id !== newAppointment.id));
         return;
       }
   
-      // Load the specific admin's data, add the new appointment, and save it back
+      // Carrega os dados da loja-alvo, adiciona o novo agendamento,
+      // e depois salva o conjunto de dados atualizado.
       db.loadData(targetStoreId).then(async (storeData) => {
         const updatedAppointments = [...storeData.appointments, newAppointment];
         await db.saveData(targetStoreId, { ...storeData, appointments: updatedAppointments });
+
       }).catch(err => {
-        console.error("Error saving appointment for store:", targetStoreId, err);
+        console.error("Erro ao salvar agendamento para a loja:", targetStoreId, err);
         alert("Não foi possível salvar seu agendamento. Verifique o link e tente novamente.");
-        // Revert UI update on save error
+        // Reverte a adição otimista do agendamento.
         setAppointments(prev => prev.filter(apt => apt.id !== newAppointment.id));
       });
     }
@@ -256,6 +387,15 @@ const App: React.FC = () => {
   };
 
   const handleLoginSuccess = (user: AdminUser) => {
+      // Se for o admin principal, salva o login para sessões futuras
+      if (user.email === 'ton222418@gmail.com') {
+        try {
+          localStorage.setItem('loggedInAdminUser', JSON.stringify(user));
+        } catch (e) {
+          console.error("Não foi possível salvar o usuário no localStorage.", e);
+        }
+      }
+      
       setCurrentUser(user);
       setIsDataLoaded(false); // Trigger data reload for this user
       
@@ -267,6 +407,12 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
+      // Garante que o estado mais recente seja salvo antes de sair.
+      saveCurrentState();
+      
+      // Limpa o login salvo do admin ao sair.
+      localStorage.removeItem('loggedInAdminUser');
+
       setCurrentUser(null);
       setView('LANDING');
       setIsDataLoaded(false); // Trigger reload of public data
@@ -279,7 +425,7 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
-    if (!isDataLoaded && view !== 'AUTH' && view !== 'LANDING') {
+    if (!isDataLoaded && !currentUser && view !== 'AUTH' && view !== 'LANDING') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>

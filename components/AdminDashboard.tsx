@@ -68,7 +68,14 @@ interface AdminDashboardProps {
   currentUser: AdminUser;
 }
 
-interface Transaction { id: string; title: string; type: 'income' | 'expense'; amount: number; date: string; }
+interface Transaction { 
+  id: string; 
+  appointmentId?: string; // Link to the appointment
+  title: string; 
+  type: 'income' | 'expense'; 
+  amount: number; 
+  date: string; 
+}
 
 // Interface auxiliar para edição de cliente
 interface EditableClient {
@@ -76,6 +83,15 @@ interface EditableClient {
     name: string;
     phone: string;
 }
+
+// Hook para obter o valor anterior de uma prop ou estado
+const usePrevious = <T,>(value: T): T | undefined => {
+    const ref = useRef<T>();
+    useEffect(() => {
+        ref.current = value;
+    });
+    return ref.current;
+};
 
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   onSwitchToClient, 
@@ -124,10 +140,39 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Novo estado para editar cliente
   const [editingClient, setEditingClient] = useState<EditableClient | null>(null);
 
-  const [transactions, setTransactions] = useState<Transaction[]>([
-      { id: '1', title: 'Corte João', type: 'income', amount: 45.00, date: 'Hoje' },
-      { id: '2', title: 'Conta Luz', type: 'expense', amount: 150.00, date: 'Ontem' },
-  ]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
+  const prevAppointments = usePrevious(appointments);
+
+  // Efeito para exibir notificações de novos agendamentos pendentes
+  useEffect(() => {
+    if (!businessProfile.desktopNotifications || Notification.permission !== 'granted' || !prevAppointments) {
+        return;
+    }
+
+    const currentPendingIds = new Set(appointments.filter(a => a.status === 'pendente').map(a => a.id));
+    const prevPendingIds = new Set(prevAppointments.filter(a => a.status === 'pendente').map(a => a.id));
+
+    const newAppointmentIds = [...currentPendingIds].filter(id => !prevPendingIds.has(id));
+
+    if (newAppointmentIds.length > 0) {
+        newAppointmentIds.forEach(id => {
+            const apt = appointments.find(a => a.id === id);
+            if (apt) {
+                 const notificationTitle = 'Novo Agendamento! 🔔';
+                 const notificationBody = `${apt.client} agendou ${apt.service} para ${apt.date} às ${apt.time}.`;
+
+                 new Notification(notificationTitle, {
+                     body: notificationBody,
+                     icon: businessProfile.logo || undefined,
+                     badge: businessProfile.logo || undefined,
+                     tag: apt.id, // Evita notificações duplicadas
+                 });
+            }
+        });
+    }
+  }, [appointments, prevAppointments, businessProfile.desktopNotifications, businessProfile.logo]);
+
 
   // --- Calculations for Dashboard ---
   const getDaysRemaining = () => {
@@ -153,6 +198,29 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       setAppointments(prev => prev.map(a => a.id === id ? { ...a, status: newStatus } : a));
       
       if (appointment) {
+          // Add transaction on confirmation
+          if (newStatus === 'confirmado') {
+              const service = services.find(s => s.name === appointment.service);
+              const alreadyExists = transactions.some(t => t.appointmentId === appointment.id);
+
+              if (service && typeof service.price === 'number' && !alreadyExists) {
+                  const newTransaction: Transaction = {
+                      id: `apt-${appointment.id}`,
+                      appointmentId: appointment.id,
+                      title: `${service.name} - ${appointment.client}`,
+                      type: 'income',
+                      amount: service.price,
+                      date: appointment.date,
+                  };
+                  setTransactions(prev => [newTransaction, ...prev]);
+              }
+          }
+          // Remove transaction on cancellation
+          else if (newStatus === 'cancelado') {
+              setTransactions(prev => prev.filter(t => t.appointmentId !== appointment.id));
+          }
+
+          // Send WhatsApp notification
           let message = '';
           const phone = appointment.phone ? appointment.phone.replace(/\D/g, '') : '';
           if (newStatus === 'confirmado') {
@@ -174,6 +242,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
+          // A imagem é convertida para base64 e o estado é atualizado.
+          // A atualização aciona o salvamento automático e permanente no App.tsx.
           onUpdateProfile({ logo: reader.result as string });
       };
       reader.readAsDataURL(file);
@@ -185,6 +255,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
+          // A imagem de fundo é convertida e o estado é atualizado.
+          // A atualização aciona o salvamento automático e permanente no App.tsx.
           onUpdateProfile({ backgroundImage: reader.result as string });
       };
       reader.readAsDataURL(file);
@@ -252,6 +324,28 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const url = `${window.location.origin}?store=${currentUser.id}`;
     navigator.clipboard.writeText(url).then(() => alert('Link exclusivo copiado!'));
   };
+  
+    const handleNotificationToggle = async () => {
+        const currentSetting = businessProfile.desktopNotifications;
+        if (!currentSetting) { // Ativando
+            if (Notification.permission === 'granted') {
+                onUpdateProfile({ desktopNotifications: true });
+            } else if (Notification.permission !== 'denied') {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    onUpdateProfile({ desktopNotifications: true });
+                    new Notification('Agende Certo', {
+                        body: 'Notificações ativadas com sucesso!',
+                        icon: businessProfile.logo || undefined,
+                    });
+                }
+            } else {
+                alert('As notificações estão bloqueadas nas configurações do seu navegador. Por favor, habilite-as para usar este recurso.');
+            }
+        } else { // Desativando
+            onUpdateProfile({ desktopNotifications: false });
+        }
+    };
 
   // --- CRUD Operations (Updated for Auto-Save) ---
   const handleSaveService = (closeForm = true) => {
@@ -763,6 +857,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                   </div>
                   
                   <div className="space-y-3">
+                      {transactions.length === 0 && (
+                          <div className="text-center py-10 text-gray-500">
+                              Nenhuma transação registrada.
+                          </div>
+                      )}
                       {transactions.map(t => {
                           const isEditing = editingTransaction?.id === t.id;
                           const dataToDisplay = isEditing ? editingTransaction! : t;
@@ -820,7 +919,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     const renderHeaderBack = (title: string) => (
         <div className="flex items-center gap-3 mb-6">
             <button onClick={() => setProfileView('menu')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors">
-                <ArrowLeft size={20} className="text-gray-600 dark:text-white" />
+                <ArrowLeft size={20} className="text-gray-600 dark:text-gray-300" />
             </button>
             <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
         </div>
@@ -917,31 +1016,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
     }
     
-    // ... rest of the component ...
-    
     if (profileView === 'meus_dados') {
         return (
             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Meus Dados')}
-                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-6 space-y-4 border border-gray-100 dark:border-white/5">
-                    
-                    {/* Logo Upload */}
-                    <div className="flex justify-center mb-6">
-                        <div className="relative group cursor-pointer" onClick={() => logoInputRef.current?.click()}>
-                            <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center overflow-hidden border-2 border-dashed border-gray-300 dark:border-white/20 hover:border-primary transition-colors">
-                                {businessProfile.logo ? (
-                                    <img src={businessProfile.logo} alt="Logo" className="w-full h-full object-cover" />
-                                ) : (
-                                    <Camera className="text-gray-400" size={32} />
-                                )}
-                            </div>
-                            <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <span className="text-white text-xs font-bold">Alterar</span>
-                            </div>
-                        </div>
-                        <input type="file" ref={logoInputRef} onChange={handleLogoChange} className="hidden" accept="image/*" />
-                    </div>
-
+                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-6 space-y-6 border border-gray-100 dark:border-white/5">
                     <div className="space-y-4">
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Nome do Negócio</label>
@@ -949,7 +1028,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                 type="text" 
                                 value={businessProfile.name || ''} 
                                 onChange={(e) => onUpdateProfile({ name: e.target.value })}
-                                className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
+                                className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 dark:bg-[#111] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                             />
                         </div>
                         <div>
@@ -958,7 +1037,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                  type="text" 
                                  value={businessProfile.whatsapp || ''} 
                                  onChange={(e) => onUpdateProfile({ whatsapp: e.target.value })}
-                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
+                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 dark:bg-[#111] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                                  placeholder="+55 (00) 00000-0000"
                              />
                         </div>
@@ -968,7 +1047,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                  type="text" 
                                  value={businessProfile.pixKey || ''} 
                                  onChange={(e) => onUpdateProfile({ pixKey: e.target.value })}
-                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
+                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 dark:bg-[#111] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                              />
                         </div>
                         <div>
@@ -977,9 +1056,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                                  type="text" 
                                  value={businessProfile.address || ''} 
                                  onChange={(e) => onUpdateProfile({ address: e.target.value })}
-                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 text-gray-900 dark:bg-[#111] dark:text-white focus:outline-none focus:border-primary"
+                                 className="w-full p-3 border border-gray-200 dark:border-white/10 rounded-lg mt-1 bg-gray-50 dark:bg-[#111] text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary"
                              />
                         </div>
+                    </div>
+                </div>
+                 <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-4 mt-6 border border-gray-100 dark:border-white/5">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <label className="font-bold text-gray-800 dark:text-white">Notificações no Dispositivo</label>
+                            <p className="text-xs text-gray-500">Receba um alerta quando chegar um novo agendamento.</p>
+                        </div>
+                        <button onClick={handleNotificationToggle}>
+                            {businessProfile.desktopNotifications ? <ToggleRight size={32} className="text-primary"/> : <ToggleLeft size={32} className="text-gray-300"/>}
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1071,7 +1161,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {renderHeaderBack('Meus Serviços')}
                 
                 <button 
-                    onClick={() => setEditingService({ id: Date.now().toString(), name: '', description: '', price: 0, duration: 30, image: '', deposit: 0 })}
+                    onClick={() => setEditingService({ id: Date.now().toString(), name: '', duration: 30, image: '' })}
                     className="w-full py-3 bg-primary/10 text-primary rounded-xl border-2 border-dashed border-primary/30 font-bold flex items-center justify-center gap-2 mb-4 hover:bg-primary/20 transition-colors"
                 >
                     <Plus size={20} /> Adicionar Serviço
@@ -1084,21 +1174,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <button onClick={() => setEditingService(null)}><X size={20} className="text-gray-400"/></button>
                         </div>
                         <div className="space-y-3">
-                            <div className="flex justify-center mb-2">
-                                <div className="w-20 h-20 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center justify-center relative cursor-pointer" onClick={() => serviceImageRef.current?.click()}>
-                                    {editingService.image ? <img src={editingService.image} className="w-full h-full object-cover rounded-lg" /> : <ImageIcon size={24} className="text-gray-400"/>}
-                                    <input type="file" ref={serviceImageRef} onChange={handleServiceImageChange} className="hidden" accept="image/*" />
-                                </div>
-                            </div>
                             <input type="text" placeholder="Nome do Serviço" value={editingService.name} onChange={e => setEditingService({...editingService, name: e.target.value})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
-                            <textarea placeholder="Descrição" value={editingService.description} onChange={e => setEditingService({...editingService, description: e.target.value})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                             <div className="flex gap-2">
-                                <input type="number" placeholder="Preço (R$)" value={editingService.price} onChange={e => setEditingService({...editingService, price: parseFloat(e.target.value)})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
+                                <input type="number" placeholder="Preço (R$)" value={editingService.price ?? ''} onChange={e => setEditingService({...editingService, price: e.target.value === '' ? undefined : parseFloat(e.target.value)})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                                 <input type="number" placeholder="Duração (min)" value={editingService.duration} onChange={e => setEditingService({...editingService, duration: parseInt(e.target.value)})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                             </div>
                             <div>
                                 <label className="text-xs text-gray-500 mb-1 block">Sinal / Depósito (R$)</label>
-                                <input type="number" placeholder="Valor do Sinal" value={editingService.deposit || 0} onChange={e => setEditingService({...editingService, deposit: parseFloat(e.target.value)})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
+                                <input type="number" placeholder="Valor do Sinal" value={editingService.deposit ?? ''} onChange={e => setEditingService({...editingService, deposit: e.target.value === '' ? undefined : parseFloat(e.target.value)})} onBlur={() => handleSaveService(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                             </div>
                             <div className="flex gap-2">
                                 <button 
@@ -1118,7 +1201,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {services.map(service => (
                         <div key={service.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
                             <h3 className="font-bold text-gray-900 dark:text-white">{service.name}</h3>
-                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{service.duration} min • R$ {service.price.toFixed(2)}</p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                                {service.duration} min 
+                                {typeof service.price === 'number' ? ` • R$ ${service.price.toFixed(2)}` : ' • Preço a consultar'}
+                            </p>
                             {service.deposit && service.deposit > 0 && 
                                 <p className="text-sm text-yellow-500 font-semibold mt-1">Sinal: R$ {service.deposit.toFixed(2)}</p>
                             }

@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
-import { Bell, Moon, Sun, Calendar, ChevronLeft } from 'lucide-react';
+import { Bell, Moon, Sun, Calendar, ChevronLeft, ChevronDown } from 'lucide-react';
 import { Theme, BusinessProfile } from '../types';
-import { Logo } from './Logo';
+import { getNextDays } from '../constants';
 
 interface LandingPageProps {
   onStartBooking: (date: Date) => void;
@@ -21,23 +21,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   businessProfile,
   isLoggedIn = false
 }) => {
-  const [selectedDate, setSelectedDate] = useState<string>(
-    new Date(new Date().setDate(new Date().getDate() + 1)).toISOString().split('T')[0]
-  );
+  const dayOptions = getNextDays(30);
+  const tomorrow = dayOptions.length > 1 ? dayOptions[1].date.toISOString().split('T')[0] : dayOptions[0].date.toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState<string>(tomorrow);
 
   const handleContinue = () => {
     const [year, month, day] = selectedDate.split('-').map(Number);
-    // Create date object interpreting as local time (00:00:00) to avoid timezone shifts
     const date = new Date(year, month - 1, day); 
     onStartBooking(date);
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] font-sans transition-colors relative">
+    <div className="min-h-screen bg-c-background dark:bg-dark font-sans transition-colors relative">
       {/* Background Image (If set) */}
       {businessProfile.backgroundImage && (
         <div 
-            className="absolute inset-0 z-0 opacity-10 pointer-events-none"
+            className="absolute inset-0 z-0 opacity-5 dark:opacity-10 pointer-events-none"
             style={{ 
                 backgroundImage: `url(${businessProfile.backgroundImage})`,
                 backgroundSize: 'cover',
@@ -49,101 +48,111 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
       {/* Header */}
       <header className="p-4 flex items-center justify-between relative z-10">
-         <div className="flex items-center gap-3">
-            <Logo size={36} />
-            <h1 className="font-bold text-xl text-c-text-primary dark:text-white hidden sm:block">Agende<span className="text-primary">Certo</span></h1>
+         <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white font-bold text-xl shadow-sm">
+            AC
          </div>
-         <div className="flex items-center gap-3">
-            <button className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-transparent dark:border-white/5">
+         <div className="flex items-center gap-2">
+            <button className="p-2 bg-white dark:bg-dark-card shadow-sm rounded-full text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-white/10">
                 <Bell size={20} />
             </button>
             <button 
                 onClick={toggleTheme}
-                className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-transparent dark:border-white/5"
+                className="p-2 bg-white dark:bg-dark-card shadow-sm rounded-full text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-white/10"
             >
                 {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
-            <button 
+             <button 
                 onClick={onGoToAdmin}
-                className={`border text-xs font-bold px-4 py-2 rounded-full transition-all flex items-center gap-2 ${
+                className={`text-xs font-bold px-4 py-2.5 rounded-full transition-all flex items-center gap-1.5 shadow-md ${
                   isLoggedIn 
-                    ? 'bg-primary text-white border-primary hover:bg-primary-hover shadow-lg' 
-                    : 'border-primary text-primary hover:bg-primary hover:text-white'
+                    ? 'bg-primary text-black' 
+                    : 'border border-primary text-primary hover:bg-primary hover:text-white'
                 }`}
             >
-                {isLoggedIn && <ChevronLeft size={14} />}
-                {isLoggedIn ? 'VOLTAR AO PAINEL' : 'ACESSAR PAINEL ADM'}
+                {isLoggedIn && <ChevronLeft size={16} />}
+                {isLoggedIn ? 'VOLTAR AO PAINEL' : 'ACESSAR PAINEL'}
             </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <div className="flex flex-col items-center justify-center pt-10 pb-20 px-4 relative z-10">
+      <div className="flex flex-col items-center justify-center pt-8 pb-20 px-4 relative z-10">
         
-        {/* Logo Badge (Dynamic) */}
+        {/* Logo Badge */}
         <div className="mb-8 relative">
-            <div className="w-40 h-40 rounded-full bg-gray-900 border-4 border-secondary shadow-xl flex items-center justify-center overflow-hidden relative z-10 bg-white dark:bg-[#0a0a0a]">
-                {businessProfile.logo ? (
-                    <img 
-                        src={businessProfile.logo} 
-                        alt="Logo da Barbearia" 
-                        className="w-full h-full object-cover" 
-                    />
-                ) : (
-                    // Default Brand Logo
-                     <div className="flex flex-col items-center justify-center">
-                        <Logo size={80} />
-                     </div>
-                )}
+            <div className="w-44 h-44 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 p-1 shadow-2xl">
+              <div className="bg-gray-800 rounded-full w-full h-full p-1.5">
+                  <div className="w-full h-full rounded-full overflow-hidden">
+                    {businessProfile.logo ? (
+                        <img 
+                            src={businessProfile.logo} 
+                            alt="Logo da Barbearia" 
+                            className="w-full h-full object-cover" 
+                        />
+                    ) : (
+                        <div className="w-full h-full bg-gray-900 flex items-center justify-center text-white font-bold text-2xl">
+                          TB
+                        </div>
+                    )}
+                  </div>
+              </div>
             </div>
-            {/* Glow effect behind logo */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-44 bg-secondary/20 blur-xl rounded-full -z-0"></div>
         </div>
 
         {/* Welcome Text */}
         <div className="text-center mb-10 max-w-md">
-            <h2 className="text-2xl font-bold mb-3 text-c-text-primary dark:text-white">Seja bem vindo!</h2>
-            <p className="text-c-text-secondary dark:text-gray-400 text-sm leading-relaxed">
+            <h2 className="text-3xl font-bold mb-3 text-c-text-primary dark:text-white">Seja bem vindo!</h2>
+            <p className="text-c-text-secondary dark:text-gray-400 text-base leading-relaxed">
                 Que bom ter você por aqui! Logo abaixo você poderá escolher a melhor data e horário para ser atendido. Te aguardando viu!
             </p>
         </div>
 
         {/* Booking Card */}
-        <div className="w-full max-w-sm bg-dark-card dark:bg-[#0a0a0a] rounded-3xl p-8 shadow-2xl relative overflow-hidden text-white border border-transparent dark:border-white/5">
-            {/* Card Content */}
-            <div className="relative z-10 flex flex-col items-center">
-                <div className="w-16 h-16 rounded-full bg-gray-800/50 border-2 border-primary flex items-center justify-center mb-4 shadow-lg backdrop-blur-sm">
-                    <Calendar className="text-primary" size={28} />
+        <div className="w-full max-w-sm bg-[#1C1C1E] dark:bg-dark-card rounded-3xl p-8 shadow-2xl relative text-white border border-gray-700 dark:border-white/10">
+            <div className="flex flex-col items-center">
+                <div className="w-20 h-20 rounded-full border-2 border-primary bg-[#2C2C2E] flex items-center justify-center mb-4">
+                    <Calendar className="text-primary" size={32} />
                 </div>
                 
-                <h3 className="text-lg font-bold mb-6 text-center text-white">
-                    Qual dia vc quer<br/>agendar?
+                <h3 className="text-2xl font-bold mb-1 text-center text-white">
+                    Qual dia vc quer
+                </h3>
+                <h3 className="text-2xl font-bold mb-6 text-center text-white">
+                    agendar?
                 </h3>
 
                 <div className="w-full mb-6">
-                    <label className="text-[10px] font-bold text-gray-300 uppercase tracking-wider mb-2 block text-center">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2 block text-center">
                         AGENDE AQUI
                     </label>
-                    <input 
-                        type="date" 
-                        value={selectedDate}
-                        onChange={(e) => setSelectedDate(e.target.value)}
-                        className="w-full bg-white text-gray-900 rounded-lg px-4 py-3 text-center font-bold outline-none focus:ring-2 focus:ring-primary shadow-inner"
-                    />
+                     <div className="relative">
+                        <select 
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="w-full appearance-none bg-white text-gray-900 rounded-lg px-4 py-3 text-center font-bold text-lg outline-none focus:ring-2 focus:ring-primary shadow-inner"
+                        >
+                          {dayOptions.map(day => {
+                                const dateString = day.date.toISOString().split('T')[0];
+                                const formattedDate = day.date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                                return (
+                                    <option key={dateString} value={dateString}>
+                                        {formattedDate}
+                                    </option>
+                                );
+                            })}
+                        </select>
+                        <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" size={20} />
+                    </div>
                 </div>
 
                 <button 
                     onClick={handleContinue}
-                    className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-3.5 rounded-xl shadow-lg transition-transform active:scale-95"
+                    className="w-full bg-primary hover:bg-primary-hover text-black font-bold py-4 rounded-xl shadow-lg transition-transform active:scale-95 text-base"
                 >
                     CONTINUAR
                 </button>
             </div>
-
-            {/* Background decoration for card */}
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-700/50 to-gray-900/50 -z-0"></div>
         </div>
-
       </div>
     </div>
   );

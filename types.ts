@@ -2,8 +2,7 @@
 export interface Service {
   id: string;
   name: string;
-  description: string;
-  price: number;
+  price?: number;
   duration: number; // in minutes
   deposit?: number; // Sinal de pagamento
   image: string;
@@ -48,6 +47,7 @@ export interface Appointment {
   date: string;
   phone?: string; // Telefone do cliente para notificações
   professional?: string; // Nome do profissional vinculado
+  reminderSent?: boolean;
 }
 
 export interface TimeSlot {
@@ -120,6 +120,7 @@ export interface BusinessProfile {
   // Notifications
   notificationSound: boolean;
   selectedSound: string;
+  desktopNotifications: boolean;
   
   // Visual
   fontFamily: string;

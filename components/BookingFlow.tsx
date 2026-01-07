@@ -14,7 +14,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { 
-  TIME_SLOTS, 
   getNextDays 
 } from '../constants';
 import { 
@@ -24,7 +23,9 @@ import {
   DayOption, 
   UserDetails,
   Appointment,
-  BusinessProfile
+  BusinessProfile,
+  BusinessHours,
+  DaySchedule
 } from '../types';
 
 interface BookingFlowProps {
@@ -39,6 +40,37 @@ interface BookingFlowProps {
   appointments: Appointment[];
   businessProfile: BusinessProfile;
 }
+
+// Gera uma lista de horários (strings 'HH:MM') com base nos intervalos de funcionamento de um dia.
+const generateTimeSlots = (daySchedule: DaySchedule, slotDuration: number): string[] => {
+    if (!daySchedule || !daySchedule.isOpen) return [];
+
+    const slots: string[] = [];
+    daySchedule.intervals.forEach(interval => {
+        const [startHour, startMinute] = interval.start.split(':').map(Number);
+        const [endHour, endMinute] = interval.end.split(':').map(Number);
+
+        const startDate = new Date();
+        startDate.setHours(startHour, startMinute, 0, 0);
+
+        const endDate = new Date();
+        endDate.setHours(endHour, endMinute, 0, 0);
+
+        let currentTime = startDate.getTime();
+        const endTime = endDate.getTime();
+
+        while (currentTime < endTime) {
+            const date = new Date(currentTime);
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            slots.push(`${hours}:${minutes}`);
+            currentTime += slotDuration * 60000;
+        }
+    });
+
+    return slots;
+};
+
 
 export const BookingFlow: React.FC<BookingFlowProps> = ({ 
   initialDate, 
@@ -59,12 +91,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   const [step, setStep] = useState<BookingStep>(BookingStep.SERVICE);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   
-  // Initialize professional based on preSelectedProId from link
+  // Initialize professional: URL param takes priority, otherwise default to Ton.
   const [selectedProfessional, setSelectedProfessional] = useState<Professional | null>(() => {
     if (preSelectedProId) {
       return professionals.find(p => p.id === preSelectedProId) || null;
     }
-    return null;
+    // Default to 'Ton' if no professional is specified in the URL
+    return professionals.find(p => p.id === 'pro_ton_1') || null;
   });
   
   // Find the DayOption that matches initialDate or default to first available
@@ -78,8 +111,15 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   // Payment State
   const [paymentType, setPaymentType] = useState<'deposit' | 'full'>('deposit');
-  const [proofFile, setProofFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // --- Dynamic Slot Generation ---
+  const dayOfWeekIndex = selectedDate.date.getDay();
+  const dayOfWeekName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dayOfWeekIndex] as keyof BusinessHours;
+  const daySchedule = businessProfile.openingHours[dayOfWeekName];
+
+  // Gera os horários com base no dia selecionado, usando um intervalo fixo de 30 minutos para manter a consistência da interface.
+  const timeSlotsForDay = generateTimeSlots(daySchedule, 30);
+
 
   const isStepValid = () => {
     switch(step) {
@@ -87,13 +127,39 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
       case BookingStep.PROFESSIONAL: return !!selectedProfessional;
       case BookingStep.DATETIME: return !!selectedDate && !!selectedTime;
       case BookingStep.DETAILS: return !!userDetails.name && userDetails.phone.length >= 10;
-      case BookingStep.PAYMENT: return !!proofFile;
+      case BookingStep.PAYMENT: return true; // Pagamento é opcional
       default: return true;
     }
   };
 
   const handleNext = () => {
     if (isStepValid()) {
+      // If moving from service selection and a professional is already pre-selected,
+      // skip directly to the date & time selection.
+      if (step === BookingStep.SERVICE && selectedProfessional) {
+        setStep(BookingStep.DATETIME);
+        window.scrollTo(0, 0);
+        return;
+      }
+      
+      // Se o serviço não tiver um preço definido, pule a etapa de pagamento.
+      if (step === BookingStep.DETAILS && typeof selectedService?.price !== 'number') {
+        const newAppointment: Appointment = {
+          id: Date.now().toString(),
+          client: userDetails.name,
+          service: selectedService!.name,
+          time: selectedTime!,
+          date: selectedDate.displayDate,
+          status: 'pendente', // Status pendente para o admin confirmar
+          phone: userDetails.phone,
+          professional: selectedProfessional!.name,
+        };
+        onConfirmBooking(newAppointment);
+        setStep(BookingStep.CONFIRMATION); // Vai direto para a confirmação
+        window.scrollTo(0, 0);
+        return; // Encerra a função aqui
+      }
+
       if (step === BookingStep.PAYMENT) {
          // Finalize booking logic
          const newAppointment: Appointment = {
@@ -116,14 +182,16 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 ⏰ *Horário:* ${selectedTime}
 ✂️ *Serviço:* ${selectedService!.name}
 👤 *Profissional:* ${selectedProfessional!.name}
-💰 *Valor Pago:* R$ ${amountPaid?.toFixed(2)}
+💰 *Valor Pago:* ${amountPaid?.toFixed(2)}
 Nome: ${userDetails.name}
 
 *Segue meu comprovante de pagamento em anexo!* 👇`;
 
          // Open WhatsApp
-         const whatsappUrl = `https://wa.me/${adminPhoneClean}?text=${encodeURIComponent(message)}`;
-         window.open(whatsappUrl, '_blank');
+         if (adminPhoneClean) {
+            const whatsappUrl = `https://wa.me/55${adminPhoneClean}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+         }
 
          onConfirmBooking(newAppointment);
       }
@@ -148,15 +216,9 @@ Nome: ${userDetails.name}
     });
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      setProofFile(e.target.files[0]);
-    }
-  };
-
   // Logic to calculate available time slots
   const getAvailableSlots = () => {
-    return TIME_SLOTS.filter(time => {
+    return timeSlotsForDay.filter(time => {
       const isTaken = appointments.some(apt => {
         // Must match date
         if (apt.date !== selectedDate.displayDate) return false;
@@ -174,11 +236,6 @@ Nome: ${userDetails.name}
             return apt.professional === selectedProfessional.name;
         }
 
-        // If appointment has no professional (legacy data) or user hasn't selected one (shouldn't happen in this flow),
-        // we might assume it blocks everyone or no one. 
-        // For safety/strictness: if no professional is recorded on the appointment, assume it blocks the slot globally?
-        // Or assume it matches if names are undefined? 
-        // Let's stick to strict name matching if available.
         return false;
       });
 
@@ -195,8 +252,11 @@ Nome: ${userDetails.name}
       { num: 2, label: 'Profissional' },
       { num: 3, label: 'Horário' },
       { num: 4, label: 'Dados' },
-      { num: 5, label: 'Pagamento' },
     ];
+    // Adiciona a etapa de pagamento apenas se o serviço tiver um preço
+    if (typeof selectedService?.price === 'number') {
+      steps.push({ num: 5, label: 'Pagamento' });
+    }
 
     return (
       <div className="w-full bg-white dark:bg-[#0a0a0a] pt-6 pb-4 px-4 shadow-sm mb-6 sticky top-0 z-10 transition-colors border-b border-transparent dark:border-white/5">
@@ -263,23 +323,25 @@ Nome: ${userDetails.name}
         <div 
           key={service.id}
           onClick={() => setSelectedService(service)}
-          className={`bg-white dark:bg-[#0a0a0a] p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md flex gap-4 ${
+          className={`bg-gray-100 dark:bg-[#111] p-4 rounded-xl border-2 cursor-pointer transition-all hover:shadow-md ${
             selectedService?.id === service.id 
               ? 'border-primary ring-1 ring-primary bg-orange-50 dark:bg-white/5' 
               : 'border-transparent shadow-sm dark:border-white/5'
           }`}
         >
-          <img src={service.image} alt={service.name} className="w-20 h-20 rounded-lg object-cover" />
-          <div className="flex-1 flex flex-col justify-between">
+          <div className="flex flex-col justify-between h-full">
             <div>
               <h3 className="font-semibold text-c-list-title dark:text-white">{service.name}</h3>
-              <p className="text-xs text-c-list-info dark:text-gray-400 mt-1 line-clamp-2">{service.description}</p>
             </div>
             <div className="flex justify-between items-center mt-2">
               <span className="text-sm font-medium text-c-list-info dark:text-gray-400 flex items-center gap-1">
                 <Clock size={14} /> {service.duration} min
               </span>
-              <span className="font-bold text-c-list-price">R$ {service.price.toFixed(2)}</span>
+              {typeof service.price === 'number' ? (
+                <span className="font-bold text-c-list-price">R$ {service.price.toFixed(2)}</span>
+              ) : (
+                <span className="font-bold text-c-list-price text-sm">A consultar</span>
+              )}
             </div>
           </div>
         </div>
@@ -351,27 +413,26 @@ Nome: ${userDetails.name}
 
       <h2 className="text-xl font-bold text-c-text-primary dark:text-white mb-4">Horários disponíveis</h2>
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-        {TIME_SLOTS.map(time => {
-          const isAvailable = availableSlots.includes(time);
+        {availableSlots.map(time => {
           return (
             <button
               key={time}
-              onClick={() => isAvailable && setSelectedTime(time)}
-              disabled={!isAvailable}
+              onClick={() => setSelectedTime(time)}
               className={`py-2 px-1 rounded-lg text-sm font-medium border transition-all ${
-                !isAvailable
-                    ? 'bg-gray-100 dark:bg-white/5 text-gray-300 dark:text-gray-600 border-transparent cursor-not-allowed decoration-slice line-through'
-                    : selectedTime === time
-                        ? 'bg-primary text-white border-primary shadow-md'
-                        : 'bg-white dark:bg-[#0a0a0a] text-c-text-secondary dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-primary'
+                selectedTime === time
+                    ? 'bg-primary text-white border-primary shadow-md'
+                    : 'bg-white dark:bg-[#0a0a0a] text-c-text-secondary dark:text-gray-300 border-gray-200 dark:border-white/10 hover:border-primary'
               }`}
             >
               {time}
             </button>
           );
         })}
+         {timeSlotsForDay.length > 0 && availableSlots.length === 0 && (
+             <p className="col-span-full text-center text-gray-500 text-sm mt-4">Nenhum horário disponível para {selectedProfessional?.name} neste dia.</p>
+         )}
       </div>
-      {availableSlots.length === 0 && (
+      {timeSlotsForDay.length === 0 && (
           <p className="text-center text-gray-500 text-sm mt-4">Nenhum horário disponível para esta data.</p>
       )}
     </div>
@@ -420,7 +481,12 @@ Nome: ${userDetails.name}
           <li className="flex justify-between"><span>Profissional:</span> <b>{selectedProfessional?.name}</b></li>
           <li className="flex justify-between"><span>Data:</span> <b>{selectedDate?.displayDate} às {selectedTime}</b></li>
           <li className="flex justify-between border-t border-orange-200 dark:border-white/10 pt-2 mt-2 text-lg font-bold">
-            <span>Total:</span> <span>R$ {selectedService?.price.toFixed(2)}</span>
+            <span>Total:</span>
+            <span>
+                {typeof selectedService?.price === 'number' 
+                    ? `R$ ${selectedService.price.toFixed(2)}` 
+                    : 'A consultar'}
+            </span>
           </li>
         </ul>
       </div>
@@ -428,7 +494,7 @@ Nome: ${userDetails.name}
   );
 
   const renderPayment = () => {
-    const depositAmount = selectedService?.deposit || 10;
+    const depositAmount = selectedService?.deposit || 0;
     const fullAmount = selectedService?.price || 0;
     const amountToPay = paymentType === 'deposit' ? depositAmount : fullAmount;
 
@@ -477,57 +543,28 @@ Nome: ${userDetails.name}
                 <Banknote size={100} />
             </div>
             <p className="text-sm text-gray-400 mb-1">Chave PIX para pagamento</p>
-            <div 
+            <button
+                type="button"
                 onClick={handleCopyPix}
-                className="flex items-center justify-between bg-gray-800 dark:bg-[#111] p-3 rounded-lg border border-gray-700 dark:border-white/10 mb-3 cursor-pointer hover:bg-gray-700 transition-colors active:scale-95"
+                className="w-full text-left flex items-center justify-between bg-gray-800 dark:bg-[#111] p-3 rounded-lg border border-gray-700 dark:border-white/10 mb-3 cursor-pointer hover:bg-gray-700 transition-colors active:scale-95"
             >
                 <code className="font-mono text-lg truncate flex-1">{pixKey}</code>
-                <div className="ml-2 text-primary hover:text-white flex items-center gap-1 text-sm font-bold">
+                <div className="ml-2 text-primary flex items-center gap-1 text-sm font-bold">
                     <Copy size={16} /> COPIAR
                 </div>
-            </div>
+            </button>
             <div className="flex justify-between items-center text-sm">
                 <span className="text-gray-300">Valor a transferir:</span>
                 <span className="text-2xl font-bold text-primary">R$ {amountToPay.toFixed(2)}</span>
             </div>
         </div>
 
-        {/* Upload Proof */}
-        <div className="bg-white dark:bg-[#0a0a0a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
-             <h3 className="font-semibold text-gray-700 dark:text-gray-200 mb-2 flex items-center gap-2">
-                 <Upload size={18} /> Anexar Comprovante
-                 <span className="text-red-500 text-xs font-normal">* Obrigatório</span>
-             </h3>
-             <div 
-                onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition-all ${
-                    proofFile ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-300 dark:border-white/10 hover:border-primary hover:bg-gray-50 dark:hover:bg-white/5'
-                }`}
-             >
-                 {proofFile ? (
-                     <>
-                        <CheckCircle size={32} className="text-green-500 mb-2" />
-                        <p className="font-medium text-green-700 dark:text-green-400">{proofFile.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">Clique para alterar</p>
-                     </>
-                 ) : (
-                     <>
-                        <Upload size={32} className="text-gray-400 mb-2" />
-                        <p className="font-medium text-gray-600 dark:text-gray-300">Clique para selecionar o comprovante</p>
-                        <p className="text-xs text-gray-400 mt-1">Imagens ou PDF</p>
-                     </>
-                 )}
-                 <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    onChange={handleFileChange} 
-                    className="hidden" 
-                    accept="image/*,application/pdf"
-                 />
+        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-900/50 mt-6 text-left flex gap-3">
+             <AlertCircle className="text-blue-500 flex-shrink-0 mt-1" size={20} />
+             <div className="text-sm text-blue-800 dark:text-blue-300">
+                 <p className="font-bold mb-1">Próximo Passo: Enviar Comprovante</p>
+                 <p>Ao clicar em finalizar, você será redirecionado para o WhatsApp para enviar o comprovante de pagamento ao administrador.</p>
              </div>
-             <p className="text-xs text-gray-400 mt-4 text-center">
-                 Ao clicar em finalizar, você será redirecionado para o WhatsApp para enviar este comprovante.
-             </p>
         </div>
 
       </div>
@@ -582,7 +619,6 @@ Nome: ${userDetails.name}
           setSelectedProfessional(null);
           setSelectedTime(null);
           setUserDetails({name: '', phone: '', notes: ''});
-          setProofFile(null);
           setPaymentType('deposit');
           window.scrollTo(0, 0);
         }}
@@ -641,7 +677,7 @@ Nome: ${userDetails.name}
                   : 'bg-gray-300 dark:bg-white/5 dark:text-gray-500 cursor-not-allowed'
               }`}
             >
-              {step === BookingStep.PAYMENT ? 'Finalizar e Enviar Comprovante' : 'Continuar'}
+              {step === BookingStep.PAYMENT ? 'Finalizar e Abrir WhatsApp' : 'Continuar'}
               {step !== BookingStep.PAYMENT && <ChevronRight size={20} />}
             </button>
           </div>

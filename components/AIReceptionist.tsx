@@ -56,10 +56,10 @@ export const AIReceptionist: React.FC = () => {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary-hover transition-all z-50 flex items-center justify-center animate-bounce border-2 border-white dark:border-[#0a0a0a]"
+        className="fixed bottom-6 right-6 bg-primary text-white p-4 rounded-full shadow-lg hover:bg-primary-hover transition-all z-50 flex items-center justify-center border-2 border-white dark:border-dark-card"
         aria-label="Abrir chat de ajuda"
       >
-        <MessageCircle size={28} />
+        <MessageCircle size={32} />
       </button>
     );
   }

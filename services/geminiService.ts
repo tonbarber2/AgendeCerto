@@ -1,3 +1,5 @@
+
+
 import { GoogleGenAI } from "@google/genai";
 import { SERVICES, PROFESSIONALS } from '../constants';
 
@@ -8,7 +10,7 @@ Você é a assistente virtual inteligente do "Agende Certo", uma barbearia premi
 Seu objetivo é ajudar os clientes a escolherem o melhor serviço e profissional, ou tirar dúvidas sobre o agendamento.
 
 Contexto da Barbearia:
-- Serviços Disponíveis: ${SERVICES.map(s => `${s.name} (R$ ${s.price})`).join(', ')}.
+- Serviços Disponíveis: ${SERVICES.map(s => `${s.name} ${typeof s.price === 'number' ? `(R$ ${s.price})` : '(preço a consultar)'}`).join(', ')}.
 - Profissionais: ${PROFESSIONALS.map(p => `${p.name} (${p.role})`).join(', ')}.
 
 Diretrizes:
@@ -23,11 +25,9 @@ export const sendMessageToGemini = async (history: {role: string, parts: {text: 
   try {
     const model = 'gemini-3-flash-preview';
     
+    // FIX: Removed redundant mapping of history array.
     const contents = [
-      ...history.map(h => ({
-        role: h.role,
-        parts: h.parts
-      })),
+      ...history,
       {
         role: 'user',
         parts: [{ text: message }]
