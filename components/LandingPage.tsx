@@ -33,24 +33,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   return (
     <div className="min-h-screen bg-c-background dark:bg-dark font-sans transition-colors relative">
-      {/* Background Image (If set) */}
-      {businessProfile.backgroundImage && (
-        <div 
-            className="absolute inset-0 z-0 opacity-5 dark:opacity-10 pointer-events-none"
-            style={{ 
-                backgroundImage: `url(${businessProfile.backgroundImage})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                filter: 'grayscale(100%)'
-            }}
-        />
-      )}
-
       {/* Header */}
       <header className="p-4 flex items-center justify-between relative z-10">
-         <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white font-bold text-xl shadow-sm">
-            AC
-         </div>
+        {businessProfile.logo ? (
+          <img src={businessProfile.logo} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-sm" />
+        ) : (
+          <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white shadow-sm">
+             <Calendar size={24} />
+          </div>
+        )}
          <div className="flex items-center gap-2">
             <button className="p-2 bg-white dark:bg-dark-card shadow-sm rounded-full text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-white/10">
                 <Bell size={20} />
@@ -78,30 +69,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Main Content */}
       <div className="flex flex-col items-center justify-center pt-8 pb-20 px-4 relative z-10">
         
-        {/* Logo Badge */}
-        <div className="mb-8 relative">
-            <div className="w-44 h-44 rounded-full bg-gradient-to-br from-yellow-300 to-yellow-500 p-1 shadow-2xl">
-              <div className="bg-gray-800 rounded-full w-full h-full p-1.5">
-                  <div className="w-full h-full rounded-full overflow-hidden">
-                    {businessProfile.logo ? (
-                        <img 
-                            src={businessProfile.logo} 
-                            alt="Logo da Barbearia" 
-                            className="w-full h-full object-cover" 
-                        />
-                    ) : (
-                        <div className="w-full h-full bg-gray-900 flex items-center justify-center text-white font-bold text-2xl">
-                          TB
-                        </div>
-                    )}
-                  </div>
-              </div>
-            </div>
-        </div>
-
         {/* Welcome Text */}
-        <div className="text-center mb-10 max-w-md">
-            <h2 className="text-3xl font-bold mb-3 text-c-text-primary dark:text-white">Seja bem vindo!</h2>
+        <div className="text-center my-10 max-w-md">
+            <h2 className="text-3xl font-bold mb-3 text-c-text-primary dark:text-white">Seja bem vindo a {businessProfile.name || 'Agende Certo'}!</h2>
             <p className="text-c-text-secondary dark:text-gray-400 text-base leading-relaxed">
                 Que bom ter você por aqui! Logo abaixo você poderá escolher a melhor data e horário para ser atendido. Te aguardando viu!
             </p>
@@ -110,9 +80,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         {/* Booking Card */}
         <div className="w-full max-w-sm bg-[#1C1C1E] dark:bg-dark-card rounded-3xl p-8 shadow-2xl relative text-white border border-gray-700 dark:border-white/10">
             <div className="flex flex-col items-center">
+              {businessProfile.logo ? (
+                <img src={businessProfile.logo} alt="Logo da Barbearia" className="w-24 h-24 rounded-full border-4 border-primary object-cover mb-4 shadow-lg" />
+              ) : (
                 <div className="w-20 h-20 rounded-full border-2 border-primary bg-[#2C2C2E] flex items-center justify-center mb-4">
                     <Calendar className="text-primary" size={32} />
                 </div>
+              )}
                 
                 <h3 className="text-2xl font-bold mb-1 text-center text-white">
                     Qual dia vc quer

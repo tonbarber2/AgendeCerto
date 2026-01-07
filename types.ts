@@ -5,7 +5,7 @@ export interface Service {
   price?: number;
   duration: number; // in minutes
   deposit?: number; // Sinal de pagamento
-  image: string;
+  image?: string; // data URL
 }
 
 export interface ServiceCategory {
@@ -18,8 +18,8 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  image?: string;
   stock?: number;
+  image?: string; // data URL
 }
 
 export interface ClientPlan {
@@ -34,8 +34,8 @@ export interface Professional {
   id: string;
   name: string;
   role: string;
-  avatar: string;
   rating: number;
+  avatar?: string; // data URL
 }
 
 export interface Appointment {
@@ -109,9 +109,9 @@ export interface BusinessProfile {
   name?: string; // Nome do negócio
   email?: string; // Email de contato
   phone?: string; // Telefone geral
+  logo?: string; // data URL
+  backgroundImage?: string; // data URL
   
-  logo: string | null;
-  backgroundImage: string | null;
   pixKey: string;
   whatsapp: string; // WhatsApp para comprovantes
   address?: string; 

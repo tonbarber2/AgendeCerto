@@ -1,6 +1,6 @@
 
 import { AdminUser, Appointment, BusinessProfile, Professional, Service, PlanType, Product, ClientPlan, Subscription } from "../types";
-import { SERVICES as DEFAULT_SERVICES, PROFESSIONALS as DEFAULT_PROFESSIONALS, DEFAULT_BUSINESS_HOURS, TON_BARBER_LOGO_BASE64 } from "../constants";
+import { SERVICES as DEFAULT_SERVICES, PROFESSIONALS as DEFAULT_PROFESSIONALS, DEFAULT_BUSINESS_HOURS, LOGO_ROUND_BASE64 } from "../constants";
 
 // CONFIGURAÇÃO DO SERVIDOR
 // Para produção, altere para a URL da sua API real (ex: 'https://api.seusite.com')
@@ -57,8 +57,8 @@ class MockDB {
                 name: 'Barbearia Ton barber',
                 email: adminEmail,
                 phone: '',
-                logo: TON_BARBER_LOGO_BASE64,
-                backgroundImage: TON_BARBER_LOGO_BASE64,
+                logo: LOGO_ROUND_BASE64,
+                backgroundImage: '',
                 pixKey: '71986073552',
                 whatsapp: '71986073552',
                 address: '',
@@ -165,8 +165,8 @@ class MockDB {
                 name: businessName,
                 email: email,
                 phone: '',
-                logo: TON_BARBER_LOGO_BASE64,
-                backgroundImage: TON_BARBER_LOGO_BASE64,
+                logo: LOGO_ROUND_BASE64,
+                backgroundImage: '',
                 pixKey: '71986073552',
                 whatsapp: '71986073552',
                 address: '',
@@ -213,88 +213,35 @@ class MockDB {
         return { ...user };
     }
     
+    // FIX: Completed the function to ensure it returns a value and handles the user not found case.
     async requestPasswordReset(email: string): Promise<string> {
         const user = this.findUserByEmail(email);
         if (!user) {
-            // Don't reveal if email exists for security, but in mock we can throw
+            // Don't reveal if email exists for security, but for this mock, we'll just throw an error.
             throw new Error("E-mail não encontrado.");
         }
-        const code = Math.floor(1000 + Math.random() * 9000).toString();
+        // In a real app, you would send an email or SMS with this code.
+        const code = Math.floor(1000 + Math.random() * 9000).toString(); // 4-digit code
         this.resetCodes.set(email.toLowerCase(), code);
-        console.log(`Password reset code for ${email}: ${code}`); // Simulate sending SMS
-        return "******-**99"; // Fake masked number
+        console.log(`[MOCK] Reset code for ${email}: ${code}`); // Log for debugging mock
+        
+        // Mock a masked phone number
+        const maskedPhone = '****-**23';
+        return maskedPhone;
     }
 
     async confirmPasswordReset(email: string, code: string, newPassword: string): Promise<void> {
-        if (this.resetCodes.get(email.toLowerCase()) !== code) {
-            throw new Error("Código de verificação inválido.");
+        const storedCode = this.resetCodes.get(email.toLowerCase());
+        if (!storedCode || storedCode !== code) {
+            throw new Error("Código de redefinição inválido ou expirado.");
         }
         const user = this.findUserByEmail(email);
-        if (user) {
-            this.passwords.set(user.id, newPassword);
-            this.resetCodes.delete(email.toLowerCase());
-            this.saveToLocalStorage();
-        } else {
+        if (!user) {
+            // Should not happen if requestPasswordReset succeeded
             throw new Error("Usuário não encontrado.");
         }
-    }
-
-    async loadData(userId: string): Promise<UserData> {
-        const userData = this.data.get(userId);
-        if (userData) {
-            return JSON.parse(JSON.stringify(userData)); // Deep copy to prevent mutation
-        }
-        throw new Error("Dados do usuário não encontrados.");
-    }
-
-    async loadPublicData(userId: string | null): Promise<UserData> {
-        if (!userId) {
-            // Return some default data if no store id is provided
-             return {
-                profile: {
-                    name: "Agende Certo",
-                    email: '',
-                    phone: '',
-                    logo: TON_BARBER_LOGO_BASE64,
-                    backgroundImage: TON_BARBER_LOGO_BASE64,
-                    pixKey: '71986073552',
-                    whatsapp: '71986073552',
-                    address: '',
-                    openingHours: DEFAULT_BUSINESS_HOURS,
-                    notificationSound: true,
-                    selectedSound: 'Padrão (Digital)',
-                    desktopNotifications: true,
-                    fontFamily: 'Inter',
-                    colors: {
-                        primary: '#D4AF37',
-                        secondary: '#F3E5AB',
-                        background: '#f9fafb',
-                        listTitle: '#111827',
-                        listPrice: '#D4AF37',
-                        listInfo: '#6b7280',
-                        textPrimary: '#111827',
-                        textSecondary: '#6b7280'
-                    }
-                },
-                appointments: [],
-                professionals: DEFAULT_PROFESSIONALS,
-                services: DEFAULT_SERVICES,
-                products: [],
-                clientPlans: [],
-            };
-        }
-        return this.loadData(userId);
-    }
-    
-    async saveData(userId: string, dataToSave: Partial<UserData>): Promise<void> {
-        const existingData = this.data.get(userId);
-        if (!existingData) {
-            throw new Error("Não é possível salvar, dados do usuário não existem.");
-        }
-        
-        const updatedData = { ...existingData, ...dataToSave };
-        this.data.set(userId, updatedData);
-        // Chama a função que salva os dados de forma permanente no localStorage.
+        this.passwords.set(user.id, newPassword);
+        this.resetCodes.delete(email.toLowerCase()); // Code used, so delete it.
         this.saveToLocalStorage();
     }
 
@@ -304,25 +251,61 @@ class MockDB {
             throw new Error("Usuário não encontrado.");
         }
 
-        const now = new Date();
-        let expiresAt = new Date();
-        if (plan === 'monthly') expiresAt.setMonth(now.getMonth() + 1);
-        if (plan === 'semiannual') expiresAt.setMonth(now.getMonth() + 6);
-        if (plan === 'annual') expiresAt.setFullYear(now.getFullYear() + 1);
-        if (plan === 'lifetime') expiresAt = new Date('9999-12-31');
-
         const newSubscription: Subscription = {
             plan,
             status: 'active',
-            startDate: now.toISOString(),
-            expiresAt: plan === 'lifetime' ? null : expiresAt.toISOString()
+            startDate: new Date().toISOString(),
+            expiresAt: null,
         };
-        
+
+        const now = new Date();
+        switch (plan) {
+            case 'monthly':
+                now.setMonth(now.getMonth() + 1);
+                newSubscription.expiresAt = now.toISOString();
+                break;
+            case 'semiannual':
+                now.setMonth(now.getMonth() + 6);
+                newSubscription.expiresAt = now.toISOString();
+                break;
+            case 'annual':
+                now.setFullYear(now.getFullYear() + 1);
+                newSubscription.expiresAt = now.toISOString();
+                break;
+            case 'lifetime':
+                newSubscription.expiresAt = null;
+                break;
+            case 'trial':
+                 now.setDate(now.getDate() + 7);
+                 newSubscription.expiresAt = now.toISOString();
+                 break;
+        }
+
         user.subscription = newSubscription;
         this.users.set(userId, user);
         this.saveToLocalStorage();
-
         return { ...user };
+    }
+    
+    async loadData(userId: string): Promise<UserData> {
+        const userData = this.data.get(userId);
+        if (!userData) {
+            throw new Error("Dados do usuário não encontrados.");
+        }
+        return JSON.parse(JSON.stringify(userData)); // Return a deep copy
+    }
+    
+    async loadPublicData(storeId: string): Promise<UserData> {
+        const userData = this.data.get(storeId);
+        if (!userData) {
+            throw new Error("Dados da loja não encontrados.");
+        }
+        return JSON.parse(JSON.stringify(userData)); // Return a deep copy
+    }
+
+    async saveData(userId: string, userData: UserData): Promise<void> {
+        this.data.set(userId, userData);
+        this.saveToLocalStorage();
     }
 }
 

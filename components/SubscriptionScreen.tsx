@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { Check, Shield, Star, Clock, Lock, QrCode, Copy, X, ArrowRight } from 'lucide-react';
 import { PlanType, AdminUser } from '../types';
 import { db } from '../services/db';
-import { Logo } from './Logo';
 
 interface SubscriptionScreenProps {
   user: AdminUser;
@@ -50,9 +49,6 @@ export const SubscriptionScreen: React.FC<SubscriptionScreenProps> = ({ user, on
         
         {/* Header */}
         <div className="text-center mb-10 max-w-lg mt-10">
-            <div className="flex justify-center mb-4">
-                <Logo size={60} />
-            </div>
             {isExpired ? (
                 <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl mb-6 flex items-center gap-2 justify-center flex-col sm:flex-row">
                     <div className="flex items-center gap-2">

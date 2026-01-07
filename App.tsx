@@ -25,6 +25,7 @@ const App: React.FC = () => {
   // Booking State
   const [bookingDate, setBookingDate] = useState<Date | undefined>(undefined);
   const [preSelectedProId, setPreSelectedProId] = useState<string | undefined>(undefined);
+  const [tempAppointment, setTempAppointment] = useState<Appointment | null>(null); // For real-time slot locking
   
   // --- Data State (Now loaded from DB) ---
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -41,8 +42,8 @@ const App: React.FC = () => {
     name: '',
     email: '',
     phone: '',
-    logo: null,
-    backgroundImage: null,
+    logo: '',
+    backgroundImage: '',
     pixKey: '',
     whatsapp: '',
     address: '',
@@ -328,6 +329,26 @@ const App: React.FC = () => {
 
   // --- Actions ---
 
+  const handleLockSlot = (slotInfo: Omit<Appointment, 'id' | 'client' | 'phone' | 'status'>) => {
+    const newTempAppointment: Appointment = {
+      id: `temp_${Date.now()}`,
+      client: 'Reserva em andamento...',
+      phone: '',
+      status: 'pendente', // This status will block the slot
+      ...slotInfo,
+    };
+    setTempAppointment(newTempAppointment);
+  };
+
+  const handleUnlockSlot = () => {
+    setTempAppointment(null);
+  };
+  
+  const handleBackToLanding = () => {
+    handleUnlockSlot();
+    setView('LANDING');
+  };
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
@@ -339,6 +360,7 @@ const App: React.FC = () => {
 
   const handleNewBooking = (newAppointment: Appointment) => {
     setAppointments(prev => [...prev, newAppointment]);
+    handleUnlockSlot(); // Clear the temporary lock
   
     // Se o admin estiver logado, o useEffect de persistência já vai salvar os dados.
     // A lógica abaixo é executada apenas para agendamentos feitos por clientes (público).
@@ -433,6 +455,8 @@ const App: React.FC = () => {
         );
     }
 
+    const displayedAppointments = tempAppointment ? [...appointments, tempAppointment] : appointments;
+
     switch(view) {
       case 'AUTH':
           return (
@@ -490,15 +514,17 @@ const App: React.FC = () => {
         return (
           <BookingFlow 
             initialDate={bookingDate}
-            onBackToLanding={() => setView('LANDING')}
+            onBackToLanding={handleBackToLanding}
             onConfirmBooking={handleNewBooking}
             professionals={professionals}
             services={services}
             preSelectedProId={preSelectedProId}
             pixKey={businessProfile.pixKey}
             adminPhone={businessProfile.whatsapp}
-            appointments={appointments}
+            appointments={displayedAppointments}
             businessProfile={businessProfile}
+            onLockSlot={handleLockSlot}
+            onUnlockSlot={handleUnlockSlot}
           />
         );
       case 'LANDING':

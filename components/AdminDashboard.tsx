@@ -122,13 +122,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // File Refs
-  const logoInputRef = useRef<HTMLInputElement>(null);
-  const bgInputRef = useRef<HTMLInputElement>(null);
-  const professionalAvatarRef = useRef<HTMLInputElement>(null);
-  const serviceImageRef = useRef<HTMLInputElement>(null);
-  const productImageRef = useRef<HTMLInputElement>(null);
-
   // --- States for Inline Editing (Buffer Objects) ---
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
@@ -164,14 +157,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
                  new Notification(notificationTitle, {
                      body: notificationBody,
-                     icon: businessProfile.logo || undefined,
-                     badge: businessProfile.logo || undefined,
                      tag: apt.id, // Evita notificações duplicadas
                  });
             }
         });
     }
-  }, [appointments, prevAppointments, businessProfile.desktopNotifications, businessProfile.logo]);
+  }, [appointments, prevAppointments, businessProfile.desktopNotifications]);
 
 
   // --- Calculations for Dashboard ---
@@ -236,90 +227,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       }
   };
 
+  const handleImageUpload = (field: 'logo' | 'backgroundImage') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target && typeof event.target.result === 'string') {
+          onUpdateProfile({ [field]: event.target.result });
+        }
+      };
+      reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
   // --- Handlers ---
-  const handleLogoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          // A imagem é convertida para base64 e o estado é atualizado.
-          // A atualização aciona o salvamento automático e permanente no App.tsx.
-          onUpdateProfile({ logo: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleBgChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          // A imagem de fundo é convertida e o estado é atualizado.
-          // A atualização aciona o salvamento automático e permanente no App.tsx.
-          onUpdateProfile({ backgroundImage: reader.result as string });
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleProfessionalAvatarChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && editingProfessional) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          const updatedPro = {
-              ...editingProfessional,
-              avatar: reader.result as string
-          };
-          setEditingProfessional(updatedPro);
-          // Auto save logic for image (immediate)
-          if (professionals.find(p => p.id === updatedPro.id)) {
-              setProfessionals(prev => prev.map(p => p.id === updatedPro.id ? updatedPro : p));
-          }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleServiceImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && editingService) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          const updatedService = {
-              ...editingService,
-              image: reader.result as string
-          };
-          setEditingService(updatedService);
-          // Auto save logic for image
-          if (services.find(s => s.id === updatedService.id)) {
-            setServices(prev => prev.map(s => s.id === updatedService.id ? updatedService : s));
-          }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleProductImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && editingProduct) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-          const updatedProd = {
-              ...editingProduct,
-              image: reader.result as string
-          };
-          setEditingProduct(updatedProd);
-          // Auto save logic for image
-          if (products.find(p => p.id === updatedProd.id)) {
-            setProducts(prev => prev.map(p => p.id === updatedProd.id ? updatedProd : p));
-          }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleCopyLink = () => {
     const url = `${window.location.origin}?store=${currentUser.id}`;
     navigator.clipboard.writeText(url).then(() => alert('Link exclusivo copiado!'));
@@ -336,7 +256,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     onUpdateProfile({ desktopNotifications: true });
                     new Notification('Agende Certo', {
                         body: 'Notificações ativadas com sucesso!',
-                        icon: businessProfile.logo || undefined,
                     });
                 }
             } else {
@@ -1021,6 +940,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Meus Dados')}
                 <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-6 space-y-6 border border-gray-100 dark:border-white/5">
+                    
+                    <div className="flex items-center gap-4">
+                      {businessProfile.logo ? (
+                        <img src={businessProfile.logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-white/10" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center"><ImageIcon size={24} className="text-gray-400" /></div>
+                      )}
+                      <div>
+                        <label htmlFor="logo-upload" className="cursor-pointer bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 px-3 py-2 text-xs font-bold rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">
+                          Trocar Logo
+                        </label>
+                        <input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload('logo')} />
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Nome do Negócio</label>
@@ -1076,34 +1010,13 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
     }
     
+
     if (profileView === 'aparencia') {
         return (
             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Personalizar Aparência')}
                 <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-6 space-y-6 border border-gray-100 dark:border-white/5">
                     
-                    {/* Background Image */}
-                    <div>
-                        <label className="text-xs font-bold text-gray-500 uppercase block mb-2">Imagem de Fundo (Capa)</label>
-                        <div 
-                            className="w-full h-32 rounded-xl bg-gray-100 dark:bg-white/5 border-2 border-dashed border-gray-300 dark:border-white/20 flex items-center justify-center cursor-pointer overflow-hidden relative group hover:border-primary transition-colors"
-                            onClick={() => bgInputRef.current?.click()}
-                        >
-                            {businessProfile.backgroundImage ? (
-                                <img src={businessProfile.backgroundImage} className="w-full h-full object-cover opacity-80" alt="Background" />
-                            ) : (
-                                <div className="flex flex-col items-center text-gray-400">
-                                    <ImageIcon size={24} />
-                                    <span className="text-xs mt-1">Carregar Imagem</span>
-                                </div>
-                            )}
-                             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Camera className="text-white" size={24} />
-                             </div>
-                        </div>
-                        <input type="file" ref={bgInputRef} onChange={handleBgChange} className="hidden" accept="image/*" />
-                    </div>
-
                     {/* Colors */}
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase block mb-3">Cores da Marca</label>
@@ -1161,7 +1074,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {renderHeaderBack('Meus Serviços')}
                 
                 <button 
-                    onClick={() => setEditingService({ id: Date.now().toString(), name: '', duration: 30, image: '' })}
+                    onClick={() => setEditingService({ id: Date.now().toString(), name: '', duration: 30 })}
                     className="w-full py-3 bg-primary/10 text-primary rounded-xl border-2 border-dashed border-primary/30 font-bold flex items-center justify-center gap-2 mb-4 hover:bg-primary/20 transition-colors"
                 >
                     <Plus size={20} /> Adicionar Serviço
@@ -1225,7 +1138,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {renderHeaderBack('Profissionais')}
                 
                 <button 
-                    onClick={() => setEditingProfessional({ id: Date.now().toString(), name: '', role: '', avatar: '', rating: 5 })}
+                    onClick={() => setEditingProfessional({ id: Date.now().toString(), name: '', role: '', rating: 5 })}
                     className="w-full py-3 bg-primary/10 text-primary rounded-xl border-2 border-dashed border-primary/30 font-bold flex items-center justify-center gap-2 mb-4 hover:bg-primary/20 transition-colors"
                 >
                     <Plus size={20} /> Adicionar Profissional
@@ -1238,12 +1151,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <button onClick={() => setEditingProfessional(null)}><X size={20} className="text-gray-400"/></button>
                         </div>
                         <div className="space-y-3">
-                             <div className="flex justify-center mb-2">
-                                <div className="w-20 h-20 bg-gray-100 dark:bg-white/10 rounded-full flex items-center justify-center relative cursor-pointer overflow-hidden" onClick={() => professionalAvatarRef.current?.click()}>
-                                    {editingProfessional.avatar ? <img src={editingProfessional.avatar} className="w-full h-full object-cover" /> : <User size={24} className="text-gray-400"/>}
-                                    <input type="file" ref={professionalAvatarRef} onChange={handleProfessionalAvatarChange} className="hidden" accept="image/*" />
-                                </div>
-                            </div>
                             <input type="text" placeholder="Nome" value={editingProfessional.name} onChange={e => setEditingProfessional({...editingProfessional, name: e.target.value})} onBlur={() => handleSaveProfessional(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                             
                             <div className="flex gap-2">
@@ -1273,7 +1180,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {professionals.map(pro => (
                         <div key={pro.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <img src={pro.avatar} className="w-12 h-12 rounded-full object-cover bg-gray-100" />
+                                <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><User size={24} className="text-gray-500" /></div>
                                 <div>
                                     <h3 className="font-bold text-gray-900 dark:text-white">{pro.name}</h3>
                                     <p className="text-xs text-gray-500">{pro.role}</p>
@@ -1298,7 +1205,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Meus Produtos')}
                  <button 
-                    onClick={() => setEditingProduct({ id: Date.now().toString(), name: '', price: 0, image: '', stock: 10 })}
+                    onClick={() => setEditingProduct({ id: Date.now().toString(), name: '', price: 0, stock: 10 })}
                     className="w-full py-3 bg-primary/10 text-primary rounded-xl border-2 border-dashed border-primary/30 font-bold flex items-center justify-center gap-2 mb-4 hover:bg-primary/20 transition-colors"
                 >
                     <Plus size={20} /> Adicionar Produto
@@ -1311,12 +1218,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <button onClick={() => setEditingProduct(null)}><X size={20} className="text-gray-400"/></button>
                         </div>
                         <div className="space-y-3">
-                             <div className="flex justify-center mb-2">
-                                <div className="w-20 h-20 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center justify-center relative cursor-pointer overflow-hidden" onClick={() => productImageRef.current?.click()}>
-                                    {editingProduct.image ? <img src={editingProduct.image} className="w-full h-full object-cover" /> : <Package size={24} className="text-gray-400"/>}
-                                    <input type="file" ref={productImageRef} onChange={handleProductImageChange} className="hidden" accept="image/*" />
-                                </div>
-                            </div>
                             <input type="text" placeholder="Nome do Produto" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} onBlur={() => handleSaveProduct(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
                             
                             <div className="flex gap-2">
@@ -1348,7 +1249,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {products.map(prod => (
                         <div key={prod.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex gap-4">
                              <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                {prod.image ? <img src={prod.image} className="w-full h-full object-cover rounded-lg" /> : <Package size={20} className="text-gray-400"/>}
+                                <Package size={20} className="text-gray-400"/>
                              </div>
                              <div className="flex-1">
                                 <div className="flex justify-between items-start">

@@ -11,7 +11,8 @@ import {
   Upload,
   CreditCard,
   Banknote,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react';
 import { 
   getNextDays 
@@ -39,6 +40,8 @@ interface BookingFlowProps {
   adminPhone?: string;
   appointments: Appointment[];
   businessProfile: BusinessProfile;
+  onLockSlot: (slotInfo: Omit<Appointment, 'id' | 'client' | 'phone' | 'status'>) => void;
+  onUnlockSlot: () => void;
 }
 
 // Gera uma lista de horários (strings 'HH:MM') com base nos intervalos de funcionamento de um dia.
@@ -82,7 +85,9 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   pixKey = "000.000.000-00", // Default fallback
   adminPhone,
   appointments,
-  businessProfile
+  businessProfile,
+  onLockSlot,
+  onUnlockSlot,
 }) => {
   // Helpers
   const dayOptions = getNextDays(14);
@@ -201,10 +206,15 @@ Nome: ${userDetails.name}
   };
 
   const handleBack = () => {
+    // Se voltar da etapa de Data/Hora, libera o horário selecionado.
+    if (step === BookingStep.DATETIME) {
+        onUnlockSlot();
+        setSelectedTime(null);
+    }
     if (step > 1) {
-      setStep(prev => prev - 1);
+        setStep(prev => prev - 1);
     } else {
-      onBackToLanding();
+        onBackToLanding();
     }
   };
 
@@ -242,6 +252,25 @@ Nome: ${userDetails.name}
       return !isTaken;
     });
   };
+
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+    if (selectedService && selectedProfessional) {
+        onLockSlot({
+            time,
+            date: selectedDate.displayDate,
+            service: selectedService.name,
+            professional: selectedProfessional.name,
+        });
+    }
+  };
+
+  const handleDateSelect = (day: DayOption) => {
+      onUnlockSlot(); // Libera qualquer horário que estivesse selecionado na data anterior
+      setSelectedTime(null); // Limpa a seleção de tempo
+      setSelectedDate(day);
+  };
+
 
   const availableSlots = getAvailableSlots();
 
@@ -294,7 +323,7 @@ Nome: ${userDetails.name}
     <div className="px-4 mb-6 -mt-2">
       <div className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-4 max-w-2xl mx-auto">
         {businessProfile.logo && (
-          <img src={businessProfile.logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-secondary" />
+          <img src={businessProfile.logo} alt="Logo" className="w-12 h-12 rounded-full object-cover" />
         )}
         <div>
           <p className="text-xs text-c-text-secondary dark:text-gray-400">Você está agendando em</p>
@@ -311,7 +340,7 @@ Nome: ${userDetails.name}
       {/* Show pre-selected professional hint if exists */}
       {selectedProfessional && (
         <div className="col-span-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 p-3 rounded-lg flex items-center gap-3 mb-2">
-            <img src={selectedProfessional.avatar} alt={selectedProfessional.name} className="w-10 h-10 rounded-full object-cover"/>
+            <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><User size={20} className="text-gray-500"/></div>
             <div>
                 <p className="text-xs text-blue-600 dark:text-blue-300 font-bold uppercase">Profissional Selecionado</p>
                 <p className="text-sm font-semibold text-gray-800 dark:text-white">Agendando com {selectedProfessional.name}</p>
@@ -369,7 +398,7 @@ Nome: ${userDetails.name}
             }`}
           >
             <div className="flex items-center gap-4">
-              <img src={pro.avatar} alt={pro.name} className="w-14 h-14 rounded-full object-cover border-2 border-white dark:border-white/10 shadow-sm" />
+              <div className="w-14 h-14 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center border-2 border-white dark:border-white/10 shadow-sm"><User size={28} className="text-gray-500"/></div>
               <div>
                 <h3 className="font-semibold text-c-list-title dark:text-white">{pro.name}</h3>
                 <p className="text-sm text-c-list-info dark:text-gray-400">{pro.role}</p>
@@ -395,10 +424,7 @@ Nome: ${userDetails.name}
         {dayOptions.map((day, idx) => (
           <button
             key={idx}
-            onClick={() => {
-              setSelectedDate(day);
-              setSelectedTime(null);
-            }}
+            onClick={() => handleDateSelect(day)}
             className={`flex-shrink-0 w-16 h-20 rounded-xl flex flex-col items-center justify-center gap-1 transition-all border ${
               selectedDate.date.toDateString() === day.date.toDateString()
                 ? 'bg-primary text-white border-primary shadow-md'
@@ -417,7 +443,7 @@ Nome: ${userDetails.name}
           return (
             <button
               key={time}
-              onClick={() => setSelectedTime(time)}
+              onClick={() => handleTimeSelect(time)}
               className={`py-2 px-1 rounded-lg text-sm font-medium border transition-all ${
                 selectedTime === time
                     ? 'bg-primary text-white border-primary shadow-md'
@@ -594,7 +620,7 @@ Nome: ${userDetails.name}
       
       <div className="bg-white dark:bg-[#0a0a0a] p-6 rounded-xl shadow-lg w-full max-w-sm border border-gray-100 dark:border-white/5">
         <div className="flex items-center gap-4 mb-4 border-b border-gray-100 dark:border-white/5 pb-4">
-          <img src={selectedProfessional?.avatar} className="w-12 h-12 rounded-full" alt="pro" />
+          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><User size={24} className="text-gray-500"/></div>
           <div className="text-left">
             <p className="font-bold text-c-list-title dark:text-white">{selectedService?.name}</p>
             <p className="text-sm text-c-list-info dark:text-gray-400">com {selectedProfessional?.name}</p>
