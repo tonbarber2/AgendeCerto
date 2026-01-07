@@ -1,11 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   Calendar, 
   ShoppingBag, 
   Users, 
   DollarSign, 
-  Camera, 
   X, 
   Clock, 
   Plus, 
@@ -33,7 +31,6 @@ import {
   Bell, 
   Phone, 
   History, 
-  ImageIcon, 
   MapPin, 
   Smartphone, 
   Home, 
@@ -225,18 +222,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               setTimeout(() => window.open(url, '_blank'), 100);
           }
       }
-  };
-
-  const handleImageUpload = (field: 'logo' | 'backgroundImage') => (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target && typeof event.target.result === 'string') {
-          onUpdateProfile({ [field]: event.target.result });
-        }
-      };
-      reader.readAsDataURL(e.target.files[0]);
-    }
   };
 
   // --- Handlers ---
@@ -941,20 +926,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                 {renderHeaderBack('Meus Dados')}
                 <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-6 space-y-6 border border-gray-100 dark:border-white/5">
                     
-                    <div className="flex items-center gap-4">
-                      {businessProfile.logo ? (
-                        <img src={businessProfile.logo} alt="Logo" className="w-16 h-16 rounded-full object-cover border-2 border-gray-200 dark:border-white/10" />
-                      ) : (
-                        <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center"><ImageIcon size={24} className="text-gray-400" /></div>
-                      )}
-                      <div>
-                        <label htmlFor="logo-upload" className="cursor-pointer bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 px-3 py-2 text-xs font-bold rounded-lg hover:bg-gray-200 dark:hover:bg-white/20 transition-colors">
-                          Trocar Logo
-                        </label>
-                        <input id="logo-upload" type="file" accept="image/*" className="hidden" onChange={handleImageUpload('logo')} />
-                      </div>
-                    </div>
-
                     <div className="space-y-4">
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase">Nome do Negócio</label>
@@ -1326,133 +1297,4 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return (
              <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Horário de Funcionamento')}
-                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5">
-                    {days.map(day => {
-                        const schedule = businessProfile.openingHours[day];
-
-                        return (
-                            <div key={day} className="p-4 flex flex-col gap-3">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-3">
-                                        <button onClick={() => toggleDay(day)}>
-                                            {schedule.isOpen ? <ToggleRight size={24} className="text-primary"/> : <ToggleLeft size={24} className="text-gray-300"/>}
-                                        </button>
-                                        <span className={`font-bold ${schedule.isOpen ? 'text-gray-900 dark:text-white' : 'text-gray-400'}`}>{dayLabels[day]}</span>
-                                    </div>
-                                    <span className="text-xs text-gray-400">{schedule.isOpen ? 'Aberto' : 'Fechado'}</span>
-                                </div>
-                                
-                                {schedule.isOpen && (
-                                    <div className="pl-9 space-y-2">
-                                        {schedule.intervals.map((interval, idx) => (
-                                            <div key={idx} className="flex items-center gap-2 animate-fade-in-up">
-                                                <input 
-                                                    type="time" 
-                                                    value={interval.start}
-                                                    onChange={(e) => updateTime(day, idx, 'start', e.target.value)}
-                                                    className="bg-gray-50 text-gray-900 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-sm dark:text-white"
-                                                />
-                                                <span className="text-gray-400 text-xs">até</span>
-                                                <input 
-                                                    type="time" 
-                                                    value={interval.end}
-                                                    onChange={(e) => updateTime(day, idx, 'end', e.target.value)}
-                                                    className="bg-gray-50 text-gray-900 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-sm dark:text-white"
-                                                />
-                                                <button 
-                                                    onClick={() => removeInterval(day, idx)}
-                                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-colors"
-                                                    title="Remover horário"
-                                                >
-                                                    <Trash2 size={14} />
-                                                </button>
-                                            </div>
-                                        ))}
-                                        
-                                        <button 
-                                            onClick={() => addInterval(day)}
-                                            className="text-xs font-bold text-primary flex items-center gap-1 mt-1 hover:text-primary-hover transition-colors"
-                                        >
-                                            <Plus size={12} /> Adicionar Período
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
-            </div>
-        );
-    }
-    
-    // Placeholder for unimplemented sections if any remain
-    return (
-        <div className="pb-24 pt-6 px-4 animate-fade-in-up">
-            {renderHeaderBack('Configuração')}
-             <div className="p-8 text-center text-gray-400">
-                <Settings size={48} className="mx-auto mb-4 opacity-20" />
-                <p>Esta seção ({profileView}) está sendo implementada.</p>
-                <button onClick={() => setProfileView('menu')} className="mt-4 text-primary font-bold">Voltar</button>
-            </div>
-        </div>
-    );
-  };
-
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] font-sans pb-20 transition-colors">
-      {/* Tab Content */}
-      <main>
-          {activeTab === 'inicio' && renderHomeView()}
-          {activeTab === 'agenda' && renderAgendaView()}
-          {activeTab === 'clientes' && renderClientsView()}
-          {activeTab === 'financeiro' && renderFinancesView()}
-          {activeTab === 'perfil' && renderProfileView()}
-      </main>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 w-full bg-white dark:bg-[#0a0a0a] border-t border-gray-200 dark:border-white/5 pb-safe px-6 py-3 flex justify-between items-center z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button 
-            onClick={() => { setActiveTab('inicio'); setProfileView('menu'); }}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'inicio' ? 'text-primary' : 'text-gray-400 dark:text-gray-600'}`}
-        >
-            <Home size={24} strokeWidth={activeTab === 'inicio' ? 2.5 : 2} />
-            <span className="text-[10px] font-medium">Início</span>
-        </button>
-        <button 
-            onClick={() => setActiveTab('agenda')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'agenda' ? 'text-primary' : 'text-gray-400 dark:text-gray-600'}`}
-        >
-            <Calendar size={24} strokeWidth={activeTab === 'agenda' ? 2.5 : 2} />
-            <span className="text-[10px] font-medium">Agenda</span>
-        </button>
-        
-        {/* FAB Button for New Action */}
-        <div className="relative -top-6">
-            <button 
-                onClick={() => setActiveTab('agenda')}
-                className="w-14 h-14 bg-primary rounded-full shadow-lg shadow-primary/40 flex items-center justify-center text-white transform transition-transform active:scale-95 border-4 border-gray-50 dark:border-[#050505]"
-            >
-                <Plus size={28} />
-            </button>
-        </div>
-        
-        {/* Added Clients Tab */}
-        <button 
-            onClick={() => setActiveTab('clientes')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'clientes' ? 'text-primary' : 'text-gray-400 dark:text-gray-600'}`}
-        >
-            <Users size={24} strokeWidth={activeTab === 'clientes' ? 2.5 : 2} />
-            <span className="text-[10px] font-medium">Clientes</span>
-        </button>
-
-        <button 
-            onClick={() => setActiveTab('perfil')}
-            className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'perfil' ? 'text-primary' : 'text-gray-400 dark:text-gray-600'}`}
-        >
-            <User size={24} strokeWidth={activeTab === 'perfil' ? 2.5 : 2} />
-            <span className="text-[10px] font-medium">Perfil</span>
-        </button>
-      </nav>
-    </div>
-  );
-};
+                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-10

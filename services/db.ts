@@ -1,6 +1,6 @@
-
 import { AdminUser, Appointment, BusinessProfile, Professional, Service, PlanType, Product, ClientPlan, Subscription } from "../types";
-import { SERVICES as DEFAULT_SERVICES, PROFESSIONALS as DEFAULT_PROFESSIONALS, DEFAULT_BUSINESS_HOURS, LOGO_ROUND_BASE64 } from "../constants";
+// FIX: Changed import from LOGO_ROUND_BASE64 to LOGO_TRANSPARENT_BASE64 to use the new logo.
+import { SERVICES as DEFAULT_SERVICES, PROFESSIONALS as DEFAULT_PROFESSIONALS, DEFAULT_BUSINESS_HOURS, LOGO_TRANSPARENT_BASE64 } from "../constants";
 
 // CONFIGURAÇÃO DO SERVIDOR
 // Para produção, altere para a URL da sua API real (ex: 'https://api.seusite.com')
@@ -57,7 +57,8 @@ class MockDB {
                 name: 'Barbearia Ton barber',
                 email: adminEmail,
                 phone: '',
-                logo: LOGO_ROUND_BASE64,
+                // FIX: Use the new transparent logo constant.
+                logo: LOGO_TRANSPARENT_BASE64,
                 backgroundImage: '',
                 pixKey: '71986073552',
                 whatsapp: '71986073552',
@@ -165,7 +166,8 @@ class MockDB {
                 name: businessName,
                 email: email,
                 phone: '',
-                logo: LOGO_ROUND_BASE64,
+                // FIX: Use the new transparent logo constant for new registrations.
+                logo: LOGO_TRANSPARENT_BASE64,
                 backgroundImage: '',
                 pixKey: '71986073552',
                 whatsapp: '71986073552',

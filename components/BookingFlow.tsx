@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, 
@@ -323,7 +322,7 @@ Nome: ${userDetails.name}
     <div className="px-4 mb-6 -mt-2">
       <div className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center gap-4 max-w-2xl mx-auto">
         {businessProfile.logo && (
-          <img src={businessProfile.logo} alt="Logo" className="w-12 h-12 rounded-full object-cover" />
+          <img src={businessProfile.logo} alt="Logo" className="h-12 w-auto" />
         )}
         <div>
           <p className="text-xs text-c-text-secondary dark:text-gray-400">Você está agendando em</p>

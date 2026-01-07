@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Bell, Moon, Sun, Calendar, ChevronLeft, ChevronDown } from 'lucide-react';
 import { Theme, BusinessProfile } from '../types';
@@ -36,7 +35,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* Header */}
       <header className="p-4 flex items-center justify-between relative z-10">
         {businessProfile.logo ? (
-          <img src={businessProfile.logo} alt="Logo" className="w-12 h-12 rounded-full object-cover shadow-sm" />
+          // FIX: Updated className to support rectangular logo.
+          <img src={businessProfile.logo} alt="Logo" className="h-12 w-auto shadow-sm" />
         ) : (
           <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white shadow-sm">
              <Calendar size={24} />
@@ -81,7 +81,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="w-full max-w-sm bg-[#1C1C1E] dark:bg-dark-card rounded-3xl p-8 shadow-2xl relative text-white border border-gray-700 dark:border-white/10">
             <div className="flex flex-col items-center">
               {businessProfile.logo ? (
-                <img src={businessProfile.logo} alt="Logo da Barbearia" className="w-24 h-24 rounded-full border-4 border-primary object-cover mb-4 shadow-lg" />
+                // FIX: Updated className to support rectangular logo and adjusted size.
+                <img src={businessProfile.logo} alt="Logo da Barbearia" className="w-48 mb-4 shadow-lg" />
               ) : (
                 <div className="w-20 h-20 rounded-full border-2 border-primary bg-[#2C2C2E] flex items-center justify-center mb-4">
                     <Calendar className="text-primary" size={32} />
