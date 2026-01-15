@@ -44,6 +44,7 @@ import {
   Image
 } from 'lucide-react';
 import { Theme, BusinessProfile, Service, Professional, Appointment, AdminUser, BusinessHours, ServiceCategory } from '../types';
+import { db } from '../services/db';
 
 interface AdminDashboardProps {
   onSwitchToClient: () => void;
@@ -238,9 +239,27 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   // --- Handlers ---
-  const handleCopyLink = () => {
-    const url = `${window.location.origin}?store=${currentUser.id}`;
-    navigator.clipboard.writeText(url).then(() => alert('Link exclusivo copiado!'));
+  const handleCopyLink = async () => {
+    try {
+        // 1. Fetch the latest complete data for the current user
+        const dataToShare = await db.loadData(currentUser.id);
+
+        // 2. Serialize and encode the data
+        const json = JSON.stringify(dataToShare);
+        const base64 = btoa(json);
+        const encodedData = encodeURIComponent(base64);
+        
+        // 3. Create the URL with the data embedded
+        const url = `${window.location.origin}/?store=${currentUser.id}&data=${encodedData}`;
+
+        // 4. Copy to clipboard
+        await navigator.clipboard.writeText(url);
+        alert('Link público copiado! Envie para seus clientes.');
+
+    } catch (error) {
+        console.error("Failed to generate share link:", error);
+        alert("Não foi possível gerar o link. Tente novamente.");
+    }
   };
   
     const handleNotificationToggle = async () => {

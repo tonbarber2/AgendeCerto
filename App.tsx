@@ -131,52 +131,64 @@ const App: React.FC = () => {
   useEffect(() => {
     const initData = async () => {
         try {
-            let data;
-            
-            // 1. Check for Store ID in URL (Client View)
             const params = new URLSearchParams(window.location.search);
+            const dataFromUrl = params.get('data');
             const storeIdFromUrl = params.get('store');
-            
-            if (storeIdFromUrl) {
-                setPublicStoreId(storeIdFromUrl);
+
+            // Priority 1: Data embedded in URL (for shared links)
+            if (dataFromUrl) {
+                try {
+                    const json = atob(decodeURIComponent(dataFromUrl));
+                    const data = JSON.parse(json);
+                    
+                    setBusinessProfile(data.profile);
+                    setAppointments(data.appointments || []);
+                    setProfessionals(data.professionals || []);
+                    setServices(data.services || []);
+                    setProducts(data.products || []);
+                    setClientPlans(data.clientPlans || []);
+                    if (storeIdFromUrl) setPublicStoreId(storeIdFromUrl);
+
+                    setIsDataLoaded(true);
+                    return; // Stop further loading
+                } catch (e) {
+                    console.error("Failed to parse data from URL, falling back.", e);
+                }
             }
 
+            // Priority 2: Logged-in admin user
             if (currentUser) {
-                // Check Subscription Status
-                // Usando optional chaining para segurança se o dado estiver incompleto
                 if (currentUser.subscription?.status === 'expired') {
                     setView('SUBSCRIPTION');
                     setIsDataLoaded(true);
-                    return; // Stop data loading if expired
+                    return;
                 }
-                data = await db.loadData(currentUser.id);
-            } else {
-                // Se for um visitante, carrega os dados públicos com base no parâmetro da URL
-                // ou assume a loja principal do administrador como padrão.
+                const data = await db.loadData(currentUser.id);
+                if (data) {
+                    setBusinessProfile(data.profile);
+                    setAppointments(data.appointments || []);
+                    setProfessionals(data.professionals || []);
+                    setServices(data.services || []);
+                    setProducts(data.products || []);
+                    setClientPlans(data.clientPlans || []);
+                }
+            } 
+            // Priority 3: Public view of a specific store or default
+            else {
                 const targetStoreId = storeIdFromUrl || 'admin_ton_permanent';
-                data = await db.loadPublicData(targetStoreId);
-            }
-
-            if (data) {
-                // Migration/Fallback logic if openingHours is old format (string) in DB
-                // This is a safety check in case we load old data
-                let safeProfile = data.profile;
-                if (typeof safeProfile.openingHours === 'string') {
-                   safeProfile.openingHours = DEFAULT_BUSINESS_HOURS;
+                if (storeIdFromUrl) setPublicStoreId(storeIdFromUrl);
+                const data = await db.loadPublicData(targetStoreId);
+                 if (data) {
+                    setBusinessProfile(data.profile);
+                    setAppointments(data.appointments || []);
+                    setProfessionals(data.professionals || []);
+                    setServices(data.services || []);
+                    setProducts(data.products || []);
+                    setClientPlans(data.clientPlans || []);
                 }
-
-                setBusinessProfile(safeProfile);
-                setAppointments(data.appointments || []);
-                setProfessionals(data.professionals || []);
-                setServices(data.services || []);
-                setProducts(data.products || []);
-                setClientPlans(data.clientPlans || []);
-                // In a real app, categories would come from DB. Initializing empty for now or mock if needed.
-                setCategories([]); 
             }
         } catch (error) {
             console.error("Falha ao carregar dados:", error);
-            // Em caso de erro crítico, não travamos o app, carregamos o estado atual (defaults)
         } finally {
             setIsDataLoaded(true);
         }
