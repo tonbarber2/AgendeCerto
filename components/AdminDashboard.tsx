@@ -242,17 +242,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleCopyLink = async () => {
     try {
         // 1. Fetch the latest complete data for the current user
-        const dataToShare = await db.loadData(currentUser.id);
+        const fullData = await db.loadData(currentUser.id);
 
-        // 2. Serialize and encode the data
+        // 2. Create a leaner profile object by picking only necessary fields.
+        const leanProfile = {
+            name: fullData.profile.name,
+            logo: fullData.profile.logo,
+            backgroundImage: fullData.profile.backgroundImage,
+            pixKey: fullData.profile.pixKey,
+            whatsapp: fullData.profile.whatsapp,
+            address: fullData.profile.address,
+            openingHours: fullData.profile.openingHours,
+            fontFamily: fullData.profile.fontFamily,
+            colors: fullData.profile.colors,
+        };
+
+        // 3. Create leaner appointment objects for conflict checking.
+        const leanAppointments = fullData.appointments
+            .filter((apt: Appointment) => apt.status === 'confirmado' || apt.status === 'pendente')
+            .map((apt: Appointment) => ({
+                date: apt.date,
+                time: apt.time,
+                status: apt.status,
+                professional: apt.professional,
+            }));
+
+        // 4. Assemble the final lean object for sharing
+        const dataToShare = {
+            profile: leanProfile,
+            services: fullData.services,
+            professionals: fullData.professionals,
+            appointments: leanAppointments,
+        };
+
+        // 5. Serialize and encode the leaner data
         const json = JSON.stringify(dataToShare);
         const base64 = btoa(json);
         const encodedData = encodeURIComponent(base64);
         
-        // 3. Create the URL with the data embedded
+        // 6. Create the final URL with the embedded data
         const url = `${window.location.origin}/?store=${currentUser.id}&data=${encodedData}`;
 
-        // 4. Copy to clipboard
+        // 7. Copy to clipboard and notify user
         await navigator.clipboard.writeText(url);
         alert('Link público copiado! Envie para seus clientes.');
 
@@ -1311,37 +1342,48 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         const removeInterval = (day: keyof BusinessHours, index: number) => {
             const currentDay = businessProfile.openingHours[day];
             const newIntervals = currentDay.intervals.filter((_, i) => i !== index);
-            
             const updatedHours = {
                 ...businessProfile.openingHours,
                 [day]: { ...currentDay, intervals: newIntervals }
             };
             onUpdateProfile({ openingHours: updatedHours });
         };
-
+        
         return (
-             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
+            <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Horário de Funcionamento')}
-                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5">
+                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm p-4 border border-gray-100 dark:border-white/5 space-y-4 divide-y divide-gray-100 dark:divide-white/5">
                     {days.map(day => (
-                        <div key={day} className="p-4">
-                            <div className="flex justify-between items-center">
-                                <span className="font-bold text-gray-800 dark:text-white">{dayLabels[day]}</span>
+                        <div key={day} className="pt-4 first:pt-0">
+                            <div className="flex items-center justify-between">
+                                <span className={`font-bold text-gray-800 dark:text-white ${!businessProfile.openingHours[day].isOpen ? 'opacity-50' : ''}`}>{dayLabels[day]}</span>
                                 <button onClick={() => toggleDay(day)}>
                                     {businessProfile.openingHours[day].isOpen ? <ToggleRight size={32} className="text-primary"/> : <ToggleLeft size={32} className="text-gray-300"/>}
                                 </button>
                             </div>
                             {businessProfile.openingHours[day].isOpen && (
-                                <div className="mt-4 space-y-3">
+                                <div className="mt-3 space-y-2">
                                     {businessProfile.openingHours[day].intervals.map((interval, index) => (
                                         <div key={index} className="flex items-center gap-2">
-                                            <input type="time" value={interval.start} onChange={e => updateTime(day, index, 'start', e.target.value)} className="w-24 p-2 border rounded-lg bg-gray-50 dark:bg-[#111] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm" />
+                                            <input 
+                                                type="time" 
+                                                value={interval.start}
+                                                onChange={e => updateTime(day, index, 'start', e.target.value)}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white text-sm" 
+                                            />
                                             <span className="text-gray-400">-</span>
-                                            <input type="time" value={interval.end} onChange={e => updateTime(day, index, 'end', e.target.value)} className="w-24 p-2 border rounded-lg bg-gray-50 dark:bg-[#111] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm" />
-                                            <button onClick={() => removeInterval(day, index)} className="text-red-500 p-2 ml-auto"><Trash2 size={16} /></button>
+                                            <input 
+                                                type="time" 
+                                                value={interval.end}
+                                                onChange={e => updateTime(day, index, 'end', e.target.value)}
+                                                className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white text-sm" 
+                                            />
+                                            <button onClick={() => removeInterval(day, index)} className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"><Trash2 size={16}/></button>
                                         </div>
                                     ))}
-                                    <button onClick={() => addInterval(day)} className="text-xs font-bold text-primary flex items-center gap-1"><Plus size={14}/> Adicionar intervalo</button>
+                                    <button onClick={() => addInterval(day)} className="w-full text-xs font-bold text-primary mt-2 flex items-center justify-center gap-1 hover:text-primary-hover">
+                                        <Plus size={14}/> Adicionar Intervalo
+                                    </button>
                                 </div>
                             )}
                         </div>
@@ -1351,93 +1393,127 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
     }
     
-    // Fallback/Default
-    return <p>Selecione uma opção</p>;
-  };
-  
-  // --- Main Component Render ---
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
-      {isSidebarOpen && (
-        <div 
-            className="fixed inset-0 bg-black/50 z-20 md:hidden"
-            onClick={() => setIsSidebarOpen(false)}
-        ></div>
-      )}
-
-      {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out bg-white dark:bg-[#0a0a0a] w-64 z-30 shadow-lg md:shadow-none border-r border-gray-200 dark:border-white/5`}>
-        <div className="flex flex-col h-full">
-            <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center gap-3">
-                {businessProfile.logo && <img src={businessProfile.logo} alt="Logo" className="h-10 w-auto" />}
-                {!businessProfile.logo && <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Briefcase className="text-primary"/></div>}
-                <div>
-                  <p className="font-bold text-sm text-gray-800 dark:text-white truncate">{businessProfile.name || 'Meu Negócio'}</p>
-                  <p className="text-xs text-gray-500">Painel Admin</p>
-                </div>
-            </div>
-            
-            <nav className="flex-1 px-4 py-4 space-y-1">
-                 <button onClick={() => { setActiveTab('inicio'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'inicio' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
-                    <Home size={20} /> Início
-                </button>
-                 <button onClick={() => { setActiveTab('agenda'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'agenda' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
-                    <Calendar size={20} /> Agenda
-                </button>
-                 <button onClick={() => { setActiveTab('clientes'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'clientes' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
-                    <Users size={20} /> Clientes
-                </button>
-                 <button onClick={() => { setActiveTab('financeiro'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'financeiro' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
-                    <DollarSign size={20} /> Financeiro
-                </button>
-                 <button onClick={() => { setActiveTab('perfil'); setIsSidebarOpen(false); setProfileView('menu'); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'perfil' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
-                    <Settings size={20} /> Configurações
-                </button>
-            </nav>
-
-            <div className="p-4 border-t border-gray-200 dark:border-white/5 space-y-3">
-                {isTrial && (
-                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg text-center text-xs text-yellow-700 dark:text-yellow-400">
-                        Você tem <b>{daysRemaining} dias</b> restantes no seu teste gratuito.
+    if (profileView === 'cancelados') {
+        const cancelledAppointments = appointments.filter(a => a.status === 'cancelado');
+        
+        return (
+             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
+                {renderHeaderBack('Agendamentos Cancelados')}
+                {cancelledAppointments.length === 0 ? (
+                    <div className="text-center text-gray-500 py-10">
+                        Nenhum agendamento cancelado.
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {cancelledAppointments.map(apt => (
+                            <div key={apt.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex items-center justify-between">
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex-shrink-0 flex items-center justify-center text-red-600">
+                                        <Ban size={20} />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h3 className="font-bold text-gray-800 dark:text-white truncate">{apt.client}</h3>
+                                        <p className="text-xs text-gray-500">{apt.service} • {apt.date} às {apt.time}</p>
+                                    </div>
+                                </div>
+                                <span className="text-xs font-bold bg-red-100 text-red-700 px-2 py-1 rounded-full uppercase">Cancelado</span>
+                            </div>
+                        ))}
                     </div>
                 )}
-                 <button onClick={onViewAsClient} className="w-full flex items-center gap-2 justify-center text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
-                    <Eye size={14} /> Ver como Cliente
-                </button>
-                <button onClick={onSwitchToClient} className="w-full flex items-center gap-2 justify-center text-xs font-bold text-red-500 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
-                    <LogOut size={14} /> Sair
-                </button>
-            </div>
-        </div>
-      </div>
+             </div>
+        );
+    }
 
-      {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="md:hidden bg-white dark:bg-[#0a0a0a] shadow-sm p-4 flex items-center justify-between z-10 border-b border-gray-200 dark:border-white/5">
-            <button onClick={() => setIsSidebarOpen(true)}>
-                <Menu size={24} className="text-gray-700 dark:text-gray-200" />
-            </button>
-            <span className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">{activeTab}</span>
-            <div className="w-6"></div> {/* Spacer */}
-        </div>
+    return null; // Fallback
+  };
 
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-[#050505] relative">
-            {activeTab === 'inicio' && renderHomeView()}
-            {activeTab === 'agenda' && renderAgendaView()}
-            {activeTab === 'clientes' && renderClientsView()}
-            {activeTab === 'financeiro' && renderFinancesView()}
-            {activeTab === 'perfil' && renderProfileView()}
+  const renderContent = () => {
+    switch(activeTab) {
+        case 'inicio': return renderHomeView();
+        case 'agenda': return renderAgendaView();
+        case 'clientes': return renderClientsView();
+        case 'financeiro': return renderFinancesView();
+        case 'perfil': return renderProfileView();
+        default: return <div className="p-4">Selecione uma aba</div>;
+    }
+  };
+  
+  const NavItem = ({ icon: Icon, label, tabName }: { icon: React.ElementType, label: string, tabName: string }) => (
+    <button 
+        onClick={() => setActiveTab(tabName)} 
+        className={`flex-1 flex flex-col items-center justify-center gap-1 p-1 rounded-md transition-colors ${activeTab === tabName ? 'text-primary' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+    >
+        <Icon size={22} strokeWidth={activeTab === tabName ? 2.5 : 2} />
+        <span className="text-[10px] font-bold">{label}</span>
+    </button>
+  );
 
-            {isTrial && (
-                <div className="sticky bottom-0 left-0 right-0 p-4 z-10">
-                     <div className="bg-yellow-500 text-white p-3 rounded-xl shadow-lg flex items-center justify-between text-sm">
-                        <p><b>{daysRemaining} dias restantes.</b> Para não perder seus dados, faça um upgrade.</p>
-                        <button className="bg-white text-yellow-600 font-bold px-3 py-1 rounded-lg text-xs hover:bg-yellow-50">ASSINAR</button>
-                    </div>
+  const DesktopNavItem = ({ icon: Icon, label, tabName }: { icon: React.ElementType, label: string, tabName: string }) => (
+     <button 
+        onClick={() => { setActiveTab(tabName); setProfileView('menu'); }} 
+        className={`w-full flex items-center gap-3 p-3 rounded-lg text-sm font-semibold transition-colors ${activeTab === tabName ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5'}`}
+    >
+        <Icon size={20} />
+        {label}
+    </button>
+  );
+
+
+  return (
+    <div className={`bg-gray-50 dark:bg-dark min-h-screen font-sans`}>
+      <div className="md:flex">
+          {/* Desktop Sidebar */}
+          <aside className="hidden md:flex flex-col w-64 h-screen p-4 bg-white dark:bg-dark-card border-r border-gray-100 dark:border-white/5 sticky top-0">
+             <div className="flex items-center gap-3 mb-8 px-2">
+                {businessProfile.logo && <img src={businessProfile.logo} alt="Logo" className="h-8 w-auto"/>}
+                 <span className="font-bold text-gray-800 dark:text-white text-lg truncate">{businessProfile.name || 'Agende Certo'}</span>
+             </div>
+
+             <nav className="flex-1 space-y-1">
+                <DesktopNavItem icon={Home} label="Início" tabName="inicio" />
+                <DesktopNavItem icon={Calendar} label="Agenda" tabName="agenda" />
+                <DesktopNavItem icon={Users} label="Clientes" tabName="clientes" />
+                <DesktopNavItem icon={DollarSign} label="Financeiro" tabName="financeiro" />
+                <DesktopNavItem icon={Settings} label="Configurações" tabName="perfil" />
+             </nav>
+             
+             <div className="mt-auto p-2">
+                 {isTrial && daysRemaining !== Infinity && (
+                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg text-center text-xs mb-4 border border-yellow-100 dark:border-yellow-900/50">
+                         <p className="font-bold text-yellow-800 dark:text-yellow-300">{daysRemaining} dias restantes</p>
+                         <p className="text-yellow-600 dark:text-yellow-400">do seu teste grátis.</p>
+                     </div>
+                 )}
+                 <button onClick={onSwitchToClient} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm font-semibold text-gray-500 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5 transition-colors">
+                    <LogOut size={20} /> Sair
+                 </button>
+             </div>
+          </aside>
+          
+          <main className="flex-1">
+              <header className="md:hidden sticky top-0 bg-white/80 dark:bg-dark-card/80 backdrop-blur-sm p-4 z-30 flex justify-between items-center border-b border-gray-100 dark:border-white/5">
+                <div className="flex items-center gap-2">
+                    {businessProfile.logo && <img src={businessProfile.logo} alt="Logo" className="h-7 w-auto"/>}
+                    <span className="font-bold text-lg text-gray-800 dark:text-white capitalize">{activeTab}</span>
                 </div>
-            )}
-        </main>
+                <div className="w-6"></div>
+              </header>
+
+              {renderContent()}
+          </main>
       </div>
+
+       {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden fixed bottom-0 left-0 w-full bg-white/80 dark:bg-dark-card/80 backdrop-blur-sm border-t border-gray-100 dark:border-white/5 p-2 z-30">
+          <div className="flex justify-around items-center max-w-md mx-auto">
+             <NavItem icon={Home} label="Início" tabName="inicio" />
+             <NavItem icon={Calendar} label="Agenda" tabName="agenda" />
+             <NavItem icon={Users} label="Clientes" tabName="clientes" />
+             <NavItem icon={DollarSign} label="Caixa" tabName="financeiro" />
+             <NavItem icon={Settings} label="Ajustes" tabName="perfil" />
+          </div>
+      </nav>
     </div>
   );
 };

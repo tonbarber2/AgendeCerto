@@ -46,14 +46,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <div className="relative z-10">
         {/* Header */}
         <header className="p-4 flex items-center justify-between">
-          {businessProfile.logo ? (
-            // FIX: Updated className to support rectangular logo.
-            <img src={businessProfile.logo} alt="Logo" className="h-12 w-auto shadow-sm" />
-          ) : (
-            <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white shadow-sm">
-               <Calendar size={24} />
-            </div>
-          )}
+          <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg text-white shadow-sm">
+             <Calendar size={24} />
+          </div>
            <div className="flex items-center gap-2">
               <button className="p-2 bg-white dark:bg-dark-card shadow-sm rounded-full text-gray-500 dark:text-gray-300 border border-gray-200 dark:border-white/10">
                   <Bell size={20} />
@@ -82,18 +77,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <div className="flex flex-col items-center justify-center pt-8 pb-20 px-4">
           
           {/* Logo Circle */}
-          <div className="w-28 h-28 rounded-full bg-white dark:bg-dark-card shadow-lg border-4 border-primary p-1 mb-6 flex items-center justify-center">
-            {businessProfile.logo ? (
-              <img 
-                src={businessProfile.logo} 
-                alt="Logo do Estabelecimento" 
-                className="w-full h-full object-cover rounded-full" 
-              />
-            ) : (
-              <Calendar size={48} className="text-primary opacity-50" />
-            )}
+          <div className="w-40 h-40 rounded-full shadow-xl mb-6">
+              {businessProfile.logo ? (
+                  <img src={businessProfile.logo} alt="Logo" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                  <div className="w-full h-full rounded-full bg-white dark:bg-dark-card flex items-center justify-center">
+                      <Calendar size={64} className="text-primary" />
+                  </div>
+              )}
           </div>
-          
+
           {/* Welcome Text */}
           <div className="text-center mt-0 mb-10 max-w-md">
               <h2 className="text-3xl font-bold mb-3 text-c-text-primary dark:text-white">Seja bem vindo!</h2>

@@ -136,7 +136,7 @@ const App: React.FC = () => {
             const storeIdFromUrl = params.get('store');
 
             // Priority 1: Data embedded in URL (for shared links)
-            if (dataFromUrl) {
+            if (dataFromUrl && storeIdFromUrl) {
                 try {
                     const json = atob(decodeURIComponent(dataFromUrl));
                     const data = JSON.parse(json);
@@ -145,11 +145,10 @@ const App: React.FC = () => {
                     setAppointments(data.appointments || []);
                     setProfessionals(data.professionals || []);
                     setServices(data.services || []);
-                    setProducts(data.products || []);
-                    setClientPlans(data.clientPlans || []);
-                    if (storeIdFromUrl) setPublicStoreId(storeIdFromUrl);
+                    setPublicStoreId(storeIdFromUrl);
 
                     setIsDataLoaded(true);
+                    setView('BOOKING_FLOW'); // Go directly to booking flow
                     return; // Stop further loading
                 } catch (e) {
                     console.error("Failed to parse data from URL, falling back.", e);
@@ -459,7 +458,7 @@ const App: React.FC = () => {
   };
 
   const renderView = () => {
-    if (!isDataLoaded && !currentUser && view !== 'AUTH' && view !== 'LANDING') {
+    if (!isDataLoaded && view !== 'AUTH' && view !== 'LANDING') {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
                 <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
