@@ -39,9 +39,11 @@ import {
   Moon, 
   Check, 
   ToggleLeft, 
-  ToggleRight 
+  ToggleRight,
+  Menu,
+  Image
 } from 'lucide-react';
-import { Theme, BusinessProfile, Service, Professional, Appointment, AdminUser, Product, ClientPlan, BusinessHours, ServiceCategory } from '../types';
+import { Theme, BusinessProfile, Service, Professional, Appointment, AdminUser, BusinessHours, ServiceCategory } from '../types';
 
 interface AdminDashboardProps {
   onSwitchToClient: () => void;
@@ -56,10 +58,6 @@ interface AdminDashboardProps {
   setProfessionals: React.Dispatch<React.SetStateAction<Professional[]>>;
   services: Service[];
   setServices: React.Dispatch<React.SetStateAction<Service[]>>;
-  products: Product[];
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-  clientPlans: ClientPlan[];
-  setClientPlans: React.Dispatch<React.SetStateAction<ClientPlan[]>>;
   categories: ServiceCategory[];
   setCategories: React.Dispatch<React.SetStateAction<ServiceCategory[]>>;
   currentUser: AdminUser;
@@ -90,6 +88,22 @@ const usePrevious = <T,>(value: T): T | undefined => {
     return ref.current;
 };
 
+// Helper function to handle image uploads and conversion to base64
+const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, onImageReady: (base64: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+        if (file.size > 2 * 1024 * 1024) { // 2MB limit
+            alert("A imagem é muito grande. O limite é de 2MB.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            onImageReady(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    }
+};
+
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ 
   onSwitchToClient, 
   onViewAsClient,
@@ -103,18 +117,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   setProfessionals,
   services,
   setServices,
-  products,
-  setProducts,
-  clientPlans,
-  setClientPlans,
   categories,
   setCategories,
   currentUser
 }) => {
   const [activeTab, setActiveTab] = useState('inicio');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Profile Navigation State
-  const [profileView, setProfileView] = useState<'menu' | 'meus_dados' | 'horarios' | 'servicos' | 'produtos' | 'profissionais' | 'cancelados' | 'planos' | 'aparencia'>('menu');
+  const [profileView, setProfileView] = useState<'menu' | 'meus_dados' | 'horarios' | 'servicos' | 'profissionais' | 'cancelados' | 'aparencia'>('menu');
   
   // Notifications State
   const [showNotifications, setShowNotifications] = useState(false);
@@ -122,8 +133,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   // --- States for Inline Editing (Buffer Objects) ---
   const [editingService, setEditingService] = useState<Service | null>(null);
   const [editingProfessional, setEditingProfessional] = useState<Professional | null>(null);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [editingPlan, setEditingPlan] = useState<ClientPlan | null>(null);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   
@@ -134,14 +143,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   
   const prevAppointments = usePrevious(appointments);
 
+  // Refs for file inputs
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
+
   // Efeito para exibir notificações de novos agendamentos pendentes
   useEffect(() => {
     if (!businessProfile.desktopNotifications || Notification.permission !== 'granted' || !prevAppointments) {
         return;
     }
 
-    const currentPendingIds = new Set(appointments.filter(a => a.status === 'pendente').map(a => a.id));
-    const prevPendingIds = new Set(prevAppointments.filter(a => a.status === 'pendente').map(a => a.id));
+    const currentPendingIds = new Set(appointments.filter(a => a.status === 'pendente' && !a.id.startsWith('temp_')).map(a => a.id));
+    const prevPendingIds = new Set(prevAppointments.filter(a => a.status === 'pendente' && !a.id.startsWith('temp_')).map(a => a.id));
 
     const newAppointmentIds = [...currentPendingIds].filter(id => !prevPendingIds.has(id));
 
@@ -288,24 +301,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     }
   };
 
-  const handleSaveProduct = (closeForm = true) => {
-    if (editingProduct) {
-      if (products.find(p => p.id === editingProduct.id)) {
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? editingProduct : p));
-      } else {
-        setProducts(prev => [...prev, editingProduct]);
-      }
-      if (closeForm) setEditingProduct(null);
-    }
-  };
-
-  const handleDeleteProduct = (id: string) => {
-    if (confirm('Excluir produto?')) {
-      setProducts(prev => prev.filter(p => p.id !== id));
-      setEditingProduct(null);
-    }
-  };
-
   const handleSaveClient = (closeForm = true) => {
       if (editingClient) {
           // Update all appointments with new name/phone to maintain consistency
@@ -333,10 +328,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const renderHomeView = () => {
       const today = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
       // Logic for simple summary
-      const todaysAppointments = appointments.filter(a => a.date.includes(today) || a.date === 'Hoje');
+      const todaysAppointments = appointments.filter(a => (a.date.includes(today) || a.date === 'Hoje') && !a.id.startsWith('temp_'));
       const income = transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0);
       
-      const pendingAppointments = appointments.filter(a => a.status === 'pendente');
+      const pendingAppointments = appointments.filter(a => a.status === 'pendente' && !a.id.startsWith('temp_'));
 
       return (
           <div className="space-y-6 animate-fade-in-up pb-24 px-4 pt-4">
@@ -418,7 +413,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               </div>
               
               {/* Quick Summary Cards */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-primary/10 dark:bg-primary/20 p-4 rounded-2xl border border-primary/20 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-primary/20 transition-colors" onClick={() => setActiveTab('agenda')}>
                       <Calendar size={28} className="text-primary mb-2" />
                       <span className="text-2xl font-bold text-gray-800 dark:text-white">{todaysAppointments.length}</span>
@@ -434,10 +429,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Action Banner (Share) - Botão de Copiar Link */}
               <div className="bg-gradient-to-r from-gray-900 to-gray-800 dark:from-white/10 dark:to-white/5 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
                   <div className="relative z-10">
-                      <h3 className="font-bold text-lg mb-1">Divulgue seu Negócio</h3>
-                      <p className="text-sm text-gray-300 mb-4 max-w-[220px]">Compartilhe o link de agendamento com seus clientes.</p>
-                      <button onClick={handleCopyLink} className="w-full bg-primary text-white px-3 py-3 rounded-lg text-sm font-bold hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 shadow-md">
-                          <LinkIcon size={18} /> COPIAR LINK
+                      <h3 className="font-bold text-lg mb-1">Seu Link de Agendamento</h3>
+                      <p className="text-sm text-gray-300 mb-4">Este é o link exclusivo da sua página. Envie para seus clientes para que eles possam agendar um horário online.</p>
+                      <button onClick={handleCopyLink} className="w-full bg-primary text-black px-3 py-3 rounded-lg text-sm font-bold hover:bg-primary-hover transition-colors flex items-center justify-center gap-2 shadow-md">
+                          <LinkIcon size={18} /> Copiar Link Público
                       </button>
                   </div>
                   <div className="absolute right-[-20px] bottom-[-20px] opacity-20 rotate-12">
@@ -448,7 +443,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
               {/* Recent Shortcuts */}
               <div>
                   <h3 className="font-bold text-gray-800 dark:text-white mb-3">Acesso Rápido</h3>
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                        <button onClick={() => { setProfileView('servicos'); setActiveTab('perfil'); }} className="flex flex-col items-center gap-2 p-3 bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 hover:border-primary transition-all">
                            <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-full flex items-center justify-center text-blue-600"><Briefcase size={18}/></div>
                            <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">Serviços</span>
@@ -472,7 +467,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   };
 
   const renderAgendaView = () => {
-    const pendingAppointments = appointments.filter(a => a.status === 'pendente');
+    const pendingAppointments = appointments.filter(a => a.status === 'pendente' && !a.id.startsWith('temp_'));
 
     const handleEditChange = (field: keyof Appointment, value: any) => {
         if (editingAppointment) {
@@ -512,6 +507,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     <button onClick={handleCopyLink} className="p-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-lg flex items-center gap-2 text-xs font-bold transition-all hover:bg-blue-100 dark:hover:bg-blue-900/40">
                         <LinkIcon size={16} /> LINK
                     </button>
+                    <button 
+                        onClick={toggleTheme}
+                        className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-white/10 hover:bg-gray-50 transition-colors"
+                    >
+                        {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
                 </div>
             </div>
             
@@ -524,9 +525,10 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             {activeAppointments.map((apt) => {
                 const isEditing = editingAppointment?.id === apt.id;
                 const dataToDisplay = isEditing ? editingAppointment! : apt;
+                const isTemp = apt.id.startsWith('temp_');
                 
                 return (
-                    <div key={apt.id} className={`bg-white dark:bg-[#0a0a0a] rounded-xl border-l-4 border-primary shadow-sm overflow-hidden transition-all dark:border-r dark:border-y dark:border-r-white/5 dark:border-y-white/5 ${isEditing ? 'ring-2 ring-primary' : ''}`}>
+                    <div key={apt.id} className={`bg-white dark:bg-[#0a0a0a] rounded-xl border-l-4 shadow-sm overflow-hidden transition-all dark:border-r dark:border-y dark:border-r-white/5 dark:border-y-white/5 ${isEditing ? 'ring-2 ring-primary' : ''} ${isTemp ? 'opacity-60 border-l-yellow-400' : 'border-l-primary'}`}>
                         {isEditing ? (
                             <div className="p-4 space-y-3">
                                 <div className="flex justify-between items-center mb-2">
@@ -553,24 +555,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         ) : (
                             <div className="p-4">
                                 <div className="flex justify-between items-start">
-                                    <div className="flex-1" onClick={() => setEditingAppointment(apt)}>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <Clock size={14} className="text-gray-400" />
-                                            <span className="font-bold text-lg text-gray-800 dark:text-gray-200">{apt.time}</span>
-                                            <span className="text-xs text-gray-400 ml-1">({apt.date})</span>
+                                    <div className="flex items-center gap-3 flex-1" onClick={() => !isTemp && setEditingAppointment(apt)}>
+                                        <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-white/10 flex items-center justify-center flex-shrink-0">
+                                            <User size={20} className="text-gray-400"/>
                                         </div>
-                                        <h3 className="font-semibold text-gray-800 dark:text-white">{apt.client}</h3>
-                                        <p className="text-xs text-gray-500">{apt.service} {apt.professional ? `• ${apt.professional}` : ''}</p>
+                                        <div className="min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <Clock size={14} className="text-gray-400" />
+                                                <span className="font-bold text-lg text-gray-800 dark:text-gray-200">{apt.time}</span>
+                                                <span className="text-xs text-gray-400 ml-1">({apt.date})</span>
+                                            </div>
+                                            <h3 className={`font-semibold text-gray-800 dark:text-white truncate ${isTemp ? 'italic text-yellow-600 dark:text-yellow-400' : ''}`}>{apt.client}</h3>
+                                            <p className="text-xs text-gray-500 truncate">{apt.service} {apt.professional ? `• ${apt.professional}` : ''}</p>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-col items-end gap-2">
+                                    <div className="flex flex-col items-end gap-2 pl-2">
                                         <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase ${apt.status === 'confirmado' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>{apt.status}</div>
-                                        <button onClick={() => setEditingAppointment(apt)} className="p-2 bg-gray-100 dark:bg-white/5 rounded-lg text-gray-500 hover:text-primary"><Edit2 size={16} /></button>
+                                        {!isTemp && <button onClick={() => setEditingAppointment(apt)} className="p-2 bg-gray-100 dark:bg-white/5 rounded-lg text-gray-500 hover:text-primary"><Edit2 size={16} /></button>}
                                     </div>
                                 </div>
-                                <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 flex justify-end gap-2">
-                                    {apt.status !== 'confirmado' && <button onClick={() => handleStatusChange(apt.id, 'confirmado')} className="text-green-600 text-xs font-bold px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100">CONFIRMAR</button>}
-                                    <button onClick={() => handleStatusChange(apt.id, 'cancelado')} className="text-red-600 text-xs font-bold px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100">CANCELAR</button>
-                                </div>
+                                {!isTemp && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 dark:border-white/5 flex justify-end gap-2">
+                                        {apt.status !== 'confirmado' && <button onClick={() => handleStatusChange(apt.id, 'confirmado')} className="text-green-600 text-xs font-bold px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg hover:bg-green-100">CONFIRMAR</button>}
+                                        <button onClick={() => handleStatusChange(apt.id, 'cancelado')} className="text-red-600 text-xs font-bold px-3 py-2 bg-red-50 dark:bg-red-900/20 rounded-lg hover:bg-red-100">CANCELAR</button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -584,29 +593,34 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     // Process unique clients from appointments
     const clientMap = new Map<string, { name: string; phone: string; visits: number; lastVisit: string }>();
 
-    appointments.forEach(apt => {
+    appointments.filter(a => !a.id.startsWith('temp_')).forEach(apt => {
         if (!clientMap.has(apt.client)) {
             clientMap.set(apt.client, { 
                 name: apt.client, 
                 phone: apt.phone || '', 
                 visits: 0, 
-                lastVisit: apt.date 
+                lastVisit: '00/00',
             });
         }
         const client = clientMap.get(apt.client)!;
         client.visits += 1;
-        // Simple string comparison for dates is not ideal but works for basic sorting if format is correct
-        // In a real app, convert to Date object
-        if (apt.date > client.lastVisit) {
-            client.lastVisit = apt.date;
-        }
+        client.lastVisit = apt.date; // Simple overwrite, last one wins
+        client.phone = apt.phone || client.phone;
     });
 
     const clients = Array.from(clientMap.values());
 
     return (
         <div className="space-y-4 animate-fade-in-up pb-24 px-4 pt-4">
-            <h2 className="text-xl font-bold text-gray-800 dark:text-white mb-4">Meus Clientes</h2>
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Meus Clientes</h2>
+              <button 
+                  onClick={toggleTheme}
+                  className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-white/10 hover:bg-gray-50 transition-colors"
+              >
+                  {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+              </button>
+            </div>
             
             {editingClient && (
                  <div className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-lg border-2 border-primary mb-6 animate-fade-in-up">
@@ -731,9 +745,17 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       return (
           <div className="space-y-6 pb-24 px-4 pt-4 animate-fade-in-up">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-white">Financeiro</h2>
+              <div className="flex justify-between items-center">
+                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">Financeiro</h2>
+                  <button 
+                      onClick={toggleTheme}
+                      className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-white/10 hover:bg-gray-50 transition-colors"
+                  >
+                      {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                  </button>
+              </div>
               
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-2xl border border-green-100 dark:border-green-900/50">
                       <p className="text-xs text-green-600 dark:text-green-400 font-bold uppercase mb-1">Entradas</p>
                       <p className="text-2xl font-bold text-green-700 dark:text-green-300">R$ {income.toFixed(2)}</p>
@@ -821,11 +843,19 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     
     // Inline Helper Renderers within ProfileView Context
     const renderHeaderBack = (title: string) => (
-        <div className="flex items-center gap-3 mb-6">
-            <button onClick={() => setProfileView('menu')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors">
-                <ArrowLeft size={20} className="text-gray-600 dark:text-gray-300" />
+        <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+                <button onClick={() => setProfileView('menu')} className="p-2 hover:bg-gray-100 dark:hover:bg-white/5 rounded-full transition-colors">
+                    <ArrowLeft size={20} className="text-gray-600 dark:text-gray-300" />
+                </button>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
+            </div>
+            <button 
+                onClick={toggleTheme}
+                className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-white/10 hover:bg-gray-50 transition-colors"
+            >
+                {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
             </button>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
         </div>
     );
 
@@ -833,6 +863,15 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (profileView === 'menu') {
         return (
             <div className="pb-24 pt-6 px-4 animate-fade-in-up">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">Configurações</h2>
+                    <button 
+                        onClick={toggleTheme}
+                        className="p-2 bg-white dark:bg-[#0a0a0a] shadow-sm rounded-full text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-white/10 hover:bg-gray-50 transition-colors"
+                    >
+                        {currentTheme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
+                </div>
                 
                 {/* Botão de Loja Retornado para a Aba Perfil (Configuração Anterior) */}
                 <div className="mb-6">
@@ -878,20 +917,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                         <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200 font-medium">
                              <div className="bg-gray-100 dark:bg-white/5 p-2 rounded-full"><Briefcase size={18} className="text-gray-600 dark:text-gray-300" /></div>
                             Serviços
-                        </div>
-                        <ChevronRight size={18} className="text-gray-400" />
-                    </button>
-                    <button onClick={() => setProfileView('produtos')} className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200 font-medium">
-                             <div className="bg-gray-100 dark:bg-white/5 p-2 rounded-full"><ShoppingBag size={18} className="text-gray-600 dark:text-gray-300" /></div>
-                            Produtos
-                        </div>
-                        <ChevronRight size={18} className="text-gray-400" />
-                    </button>
-                    <button onClick={() => setProfileView('planos')} className="w-full p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
-                        <div className="flex items-center gap-3 text-gray-700 dark:text-gray-200 font-medium">
-                             <div className="bg-gray-100 dark:bg-white/5 p-2 rounded-full"><Package size={18} className="text-gray-600 dark:text-gray-300" /></div>
-                            Planos Mensais
                         </div>
                         <ChevronRight size={18} className="text-gray-400" />
                     </button>
@@ -991,7 +1016,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     {/* Colors */}
                     <div>
                         <label className="text-xs font-bold text-gray-500 uppercase block mb-3">Cores da Marca</label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <span className="text-xs text-gray-400 mb-1 block">Cor Principal</span>
                                 <div className="flex items-center gap-2 p-2 border border-gray-200 dark:border-white/10 rounded-lg bg-gray-50 dark:bg-[#111]">
@@ -1033,6 +1058,60 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                             <option value="Open Sans">Open Sans (Legível)</option>
                             <option value="Roboto">Roboto (Padrão)</option>
                         </select>
+                    </div>
+
+                    {/* Logo and Background */}
+                    <div className="mt-6 pt-6 border-t border-gray-100 dark:border-white/5">
+                        <label className="text-xs font-bold text-gray-500 uppercase block mb-3">Logo e Imagem de Fundo</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            {/* Logo Upload */}
+                            <div className="space-y-2">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Logo da Empresa</span>
+                                <div className="w-full h-32 bg-gray-100 dark:bg-white/5 rounded-lg flex items-center justify-center border border-dashed border-gray-300 dark:border-white/10 overflow-hidden">
+                                    {businessProfile.logo ? (
+                                        <img src={businessProfile.logo} alt="Logo" className="max-h-full max-w-full object-contain p-2" />
+                                    ) : (
+                                        <Briefcase size={32} className="text-gray-400" />
+                                    )}
+                                </div>
+                                <input 
+                                    type="file"
+                                    ref={logoInputRef}
+                                    hidden
+                                    accept="image/png, image/jpeg, image/webp, image/svg+xml"
+                                    onChange={(e) => handleImageUpload(e, (base64) => onUpdateProfile({ logo: base64 }))}
+                                />
+                                <div className="flex gap-2">
+                                    <button onClick={() => logoInputRef.current?.click()} className="flex-1 text-xs font-bold bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors">Alterar</button>
+                                    {businessProfile.logo && (
+                                        <button onClick={() => onUpdateProfile({ logo: '' })} className="flex-1 text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">Remover</button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Background Image Upload */}
+                            <div className="space-y-2">
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Imagem de Fundo</span>
+                                <div className="w-full h-32 bg-gray-100 dark:bg-white/5 rounded-lg flex items-center justify-center border border-dashed border-gray-300 dark:border-white/10 overflow-hidden bg-cover bg-center" style={{ backgroundImage: `url(${businessProfile.backgroundImage})` }}>
+                                    {!businessProfile.backgroundImage && (
+                                        <Image size={32} className="text-gray-400" />
+                                    )}
+                                </div>
+                                <input 
+                                    type="file"
+                                    ref={bgInputRef}
+                                    hidden
+                                    accept="image/png, image/jpeg, image/webp"
+                                    onChange={(e) => handleImageUpload(e, (base64) => onUpdateProfile({ backgroundImage: base64 }))}
+                                />
+                                <div className="flex gap-2">
+                                    <button onClick={() => bgInputRef.current?.click()} className="flex-1 text-xs font-bold bg-gray-200 dark:bg-white/10 text-gray-700 dark:text-gray-200 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-white/20 transition-colors">Alterar</button>
+                                    {businessProfile.backgroundImage && (
+                                        <button onClick={() => onUpdateProfile({ backgroundImage: '' })} className="flex-1 text-xs font-bold bg-red-50 dark:bg-red-900/20 text-red-600 py-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">Remover</button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1171,79 +1250,6 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         );
     }
 
-    if (profileView === 'produtos') {
-        return (
-            <div className="pb-24 pt-6 px-4 animate-fade-in-up">
-                {renderHeaderBack('Meus Produtos')}
-                 <button 
-                    onClick={() => setEditingProduct({ id: Date.now().toString(), name: '', price: 0, stock: 10 })}
-                    className="w-full py-3 bg-primary/10 text-primary rounded-xl border-2 border-dashed border-primary/30 font-bold flex items-center justify-center gap-2 mb-4 hover:bg-primary/20 transition-colors"
-                >
-                    <Plus size={20} /> Adicionar Produto
-                </button>
-
-                {editingProduct && (
-                    <div className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-lg border-2 border-primary mb-6 animate-fade-in-up">
-                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="font-bold text-primary">Novo Produto</h3>
-                            <button onClick={() => setEditingProduct(null)}><X size={20} className="text-gray-400"/></button>
-                        </div>
-                        <div className="space-y-3">
-                            <input type="text" placeholder="Nome do Produto" value={editingProduct.name} onChange={e => setEditingProduct({...editingProduct, name: e.target.value})} onBlur={() => handleSaveProduct(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
-                            
-                            <div className="flex gap-2">
-                                <div className="flex-1">
-                                    <label className="text-xs text-gray-500 mb-1 block">Preço (R$)</label>
-                                    <input type="number" placeholder="0.00" value={editingProduct.price} onChange={e => setEditingProduct({...editingProduct, price: parseFloat(e.target.value)})} onBlur={() => handleSaveProduct(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="text-xs text-gray-500 mb-1 block">Estoque</label>
-                                    <input type="number" placeholder="Qtd" value={editingProduct.stock || 0} onChange={e => setEditingProduct({...editingProduct, stock: parseInt(e.target.value)})} onBlur={() => handleSaveProduct(false)} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-900 dark:bg-[#111] dark:border-white/10 dark:text-white" />
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2">
-                                <button 
-                                    onClick={() => handleDeleteProduct(editingProduct.id)} 
-                                    className="p-2 bg-red-50 dark:bg-red-900/20 text-red-600 rounded-lg border border-red-100 dark:border-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
-                                    title="Excluir Produto"
-                                >
-                                    <Trash2 size={20} />
-                                </button>
-                                <button onClick={() => handleSaveProduct(true)} className="flex-1 bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition-colors">Salvar</button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                 <div className="space-y-3">
-                    {products.map(prod => (
-                        <div key={prod.id} className="bg-white dark:bg-[#0a0a0a] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-white/5 flex gap-4">
-                             <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Package size={20} className="text-gray-400"/>
-                             </div>
-                             <div className="flex-1">
-                                <div className="flex justify-between items-start">
-                                    <h3 className="font-bold text-gray-900 dark:text-white">{prod.name}</h3>
-                                    {prod.stock !== undefined && (
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${prod.stock > 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
-                                            {prod.stock > 0 ? `${prod.stock} un` : 'Esgotado'}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-sm font-bold text-green-600">R$ {prod.price.toFixed(2)}</p>
-                                <div className="flex gap-2 mt-2">
-                                    <button onClick={() => setEditingProduct(prod)} className="text-xs bg-blue-50 dark:bg-blue-900/20 text-blue-600 px-2 py-1 rounded">Editar</button>
-                                    <button onClick={() => handleDeleteProduct(prod.id)} className="text-xs bg-red-50 dark:bg-red-900/20 text-red-600 px-2 py-1 rounded">Excluir</button>
-                                </div>
-                             </div>
-                        </div>
-                    ))}
-                 </div>
-            </div>
-        );
-    }
-
     if (profileView === 'horarios') {
         const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
         const dayLabels: {[key: string]: string} = { monday: 'Segunda', tuesday: 'Terça', wednesday: 'Quarta', thursday: 'Quinta', friday: 'Sexta', saturday: 'Sábado', sunday: 'Domingo' };
@@ -1297,4 +1303,122 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         return (
              <div className="pb-24 pt-6 px-4 animate-fade-in-up">
                 {renderHeaderBack('Horário de Funcionamento')}
-                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-10
+                <div className="bg-white dark:bg-[#0a0a0a] rounded-xl shadow-sm border border-gray-100 dark:border-white/5 divide-y divide-gray-100 dark:divide-white/5">
+                    {days.map(day => (
+                        <div key={day} className="p-4">
+                            <div className="flex justify-between items-center">
+                                <span className="font-bold text-gray-800 dark:text-white">{dayLabels[day]}</span>
+                                <button onClick={() => toggleDay(day)}>
+                                    {businessProfile.openingHours[day].isOpen ? <ToggleRight size={32} className="text-primary"/> : <ToggleLeft size={32} className="text-gray-300"/>}
+                                </button>
+                            </div>
+                            {businessProfile.openingHours[day].isOpen && (
+                                <div className="mt-4 space-y-3">
+                                    {businessProfile.openingHours[day].intervals.map((interval, index) => (
+                                        <div key={index} className="flex items-center gap-2">
+                                            <input type="time" value={interval.start} onChange={e => updateTime(day, index, 'start', e.target.value)} className="w-24 p-2 border rounded-lg bg-gray-50 dark:bg-[#111] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm" />
+                                            <span className="text-gray-400">-</span>
+                                            <input type="time" value={interval.end} onChange={e => updateTime(day, index, 'end', e.target.value)} className="w-24 p-2 border rounded-lg bg-gray-50 dark:bg-[#111] border-gray-200 dark:border-white/10 text-gray-900 dark:text-white text-sm" />
+                                            <button onClick={() => removeInterval(day, index)} className="text-red-500 p-2 ml-auto"><Trash2 size={16} /></button>
+                                        </div>
+                                    ))}
+                                    <button onClick={() => addInterval(day)} className="text-xs font-bold text-primary flex items-center gap-1"><Plus size={14}/> Adicionar intervalo</button>
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
+    
+    // Fallback/Default
+    return <p>Selecione uma opção</p>;
+  };
+  
+  // --- Main Component Render ---
+  return (
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 font-sans">
+      {isSidebarOpen && (
+        <div 
+            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+        ></div>
+      )}
+
+      {/* Sidebar */}
+      <div className={`fixed inset-y-0 left-0 transform ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:relative md:translate-x-0 transition-transform duration-200 ease-in-out bg-white dark:bg-[#0a0a0a] w-64 z-30 shadow-lg md:shadow-none border-r border-gray-200 dark:border-white/5`}>
+        <div className="flex flex-col h-full">
+            <div className="p-4 border-b border-gray-200 dark:border-white/5 flex items-center gap-3">
+                {businessProfile.logo && <img src={businessProfile.logo} alt="Logo" className="h-10 w-auto" />}
+                {!businessProfile.logo && <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center"><Briefcase className="text-primary"/></div>}
+                <div>
+                  <p className="font-bold text-sm text-gray-800 dark:text-white truncate">{businessProfile.name || 'Meu Negócio'}</p>
+                  <p className="text-xs text-gray-500">Painel Admin</p>
+                </div>
+            </div>
+            
+            <nav className="flex-1 px-4 py-4 space-y-1">
+                 <button onClick={() => { setActiveTab('inicio'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'inicio' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                    <Home size={20} /> Início
+                </button>
+                 <button onClick={() => { setActiveTab('agenda'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'agenda' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                    <Calendar size={20} /> Agenda
+                </button>
+                 <button onClick={() => { setActiveTab('clientes'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'clientes' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                    <Users size={20} /> Clientes
+                </button>
+                 <button onClick={() => { setActiveTab('financeiro'); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'financeiro' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                    <DollarSign size={20} /> Financeiro
+                </button>
+                 <button onClick={() => { setActiveTab('perfil'); setIsSidebarOpen(false); setProfileView('menu'); }} className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${activeTab === 'perfil' ? 'bg-primary/10 text-primary' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}>
+                    <Settings size={20} /> Configurações
+                </button>
+            </nav>
+
+            <div className="p-4 border-t border-gray-200 dark:border-white/5 space-y-3">
+                {isTrial && (
+                     <div className="bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded-lg text-center text-xs text-yellow-700 dark:text-yellow-400">
+                        Você tem <b>{daysRemaining} dias</b> restantes no seu teste gratuito.
+                    </div>
+                )}
+                 <button onClick={onViewAsClient} className="w-full flex items-center gap-2 justify-center text-xs font-bold bg-gray-100 dark:bg-white/5 text-gray-600 dark:text-gray-300 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 transition-colors">
+                    <Eye size={14} /> Ver como Cliente
+                </button>
+                <button onClick={onSwitchToClient} className="w-full flex items-center gap-2 justify-center text-xs font-bold text-red-500 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                    <LogOut size={14} /> Sair
+                </button>
+            </div>
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="md:hidden bg-white dark:bg-[#0a0a0a] shadow-sm p-4 flex items-center justify-between z-10 border-b border-gray-200 dark:border-white/5">
+            <button onClick={() => setIsSidebarOpen(true)}>
+                <Menu size={24} className="text-gray-700 dark:text-gray-200" />
+            </button>
+            <span className="text-sm font-bold uppercase text-gray-500 dark:text-gray-400">{activeTab}</span>
+            <div className="w-6"></div> {/* Spacer */}
+        </div>
+
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-[#050505] relative">
+            {activeTab === 'inicio' && renderHomeView()}
+            {activeTab === 'agenda' && renderAgendaView()}
+            {activeTab === 'clientes' && renderClientsView()}
+            {activeTab === 'financeiro' && renderFinancesView()}
+            {activeTab === 'perfil' && renderProfileView()}
+
+            {isTrial && (
+                <div className="sticky bottom-0 left-0 right-0 p-4 z-10">
+                     <div className="bg-yellow-500 text-white p-3 rounded-xl shadow-lg flex items-center justify-between text-sm">
+                        <p><b>{daysRemaining} dias restantes.</b> Para não perder seus dados, faça um upgrade.</p>
+                        <button className="bg-white text-yellow-600 font-bold px-3 py-1 rounded-lg text-xs hover:bg-yellow-50">ASSINAR</button>
+                    </div>
+                </div>
+            )}
+        </main>
+      </div>
+    </div>
+  );
+};

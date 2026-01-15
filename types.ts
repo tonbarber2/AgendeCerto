@@ -1,4 +1,5 @@
 
+
 export interface Service {
   id: string;
   name: string;
@@ -68,9 +69,9 @@ export interface UserDetails {
 }
 
 export enum BookingStep {
-  SERVICE = 1,
-  PROFESSIONAL = 2,
-  DATETIME = 3,
+  DATETIME = 1,
+  SERVICE = 2,
+  PROFESSIONAL = 3,
   DETAILS = 4,
   PAYMENT = 5,
   CONFIRMATION = 6

@@ -11,7 +11,8 @@ import {
   CreditCard,
   Banknote,
   AlertCircle,
-  User
+  User,
+  Edit2
 } from 'lucide-react';
 import { 
   getNextDays 
@@ -92,7 +93,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
   const dayOptions = getNextDays(14);
   
   // State
-  const [step, setStep] = useState<BookingStep>(BookingStep.SERVICE);
+  const [step, setStep] = useState<BookingStep>(BookingStep.DATETIME);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   
   // Initialize professional: URL param takes priority, otherwise default to Ton.
@@ -115,6 +116,7 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   // Payment State
   const [paymentType, setPaymentType] = useState<'deposit' | 'full'>('deposit');
+  const [isPaymentSkipped, setIsPaymentSkipped] = useState(false);
   
   // --- Dynamic Slot Generation ---
   const dayOfWeekIndex = selectedDate.date.getDay();
@@ -127,10 +129,10 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   const isStepValid = () => {
     switch(step) {
+      case BookingStep.DATETIME: return !!selectedDate && !!selectedTime;
       case BookingStep.SERVICE: return !!selectedService;
       case BookingStep.PROFESSIONAL: return !!selectedProfessional;
-      case BookingStep.DATETIME: return !!selectedDate && !!selectedTime;
-      case BookingStep.DETAILS: return !!userDetails.name && userDetails.phone.length >= 10;
+      case BookingStep.DETAILS: return userDetails.name.trim().includes(' ') && userDetails.phone.length >= 10;
       case BookingStep.PAYMENT: return true; // Pagamento é opcional
       default: return true;
     }
@@ -138,19 +140,21 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 
   const handleNext = () => {
     if (isStepValid()) {
-      // If moving from service selection and a professional is already pre-selected,
-      // skip directly to the date & time selection.
-      if (step === BookingStep.SERVICE && selectedProfessional) {
-        setStep(BookingStep.DATETIME);
+      // Since a professional is pre-selected and it's the only one,
+      // always skip the professional selection step.
+      if (step === BookingStep.SERVICE) {
+        setStep(BookingStep.DETAILS);
         window.scrollTo(0, 0);
         return;
       }
       
+      const clientName = userDetails.name.trim();
+
       // Se o serviço não tiver um preço definido, pule a etapa de pagamento.
       if (step === BookingStep.DETAILS && typeof selectedService?.price !== 'number') {
         const newAppointment: Appointment = {
           id: Date.now().toString(),
-          client: userDetails.name,
+          client: clientName,
           service: selectedService!.name,
           time: selectedTime!,
           date: selectedDate.displayDate,
@@ -158,6 +162,25 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
           phone: userDetails.phone,
           professional: selectedProfessional!.name,
         };
+        
+        // Generate WhatsApp Message for Admin (no payment)
+        const adminPhoneClean = adminPhone?.replace(/\D/g, '') || '';
+        const message = `Olá! Gostaria de solicitar um agendamento:
+📅 *Data:* ${selectedDate.displayDate}
+⏰ *Horário:* ${selectedTime}
+✂️ *Serviço:* ${selectedService!.name}
+👤 *Profissional:* ${selectedProfessional!.name}
+Nome: ${clientName}
+
+Por favor, confirme meu horário. Obrigado!`;
+
+        // Open WhatsApp
+        if (adminPhoneClean) {
+            const whatsappUrl = `https://wa.me/55${adminPhoneClean}?text=${encodeURIComponent(message)}`;
+            window.open(whatsappUrl, '_blank');
+        }
+
+        setIsPaymentSkipped(true);
         onConfirmBooking(newAppointment);
         setStep(BookingStep.CONFIRMATION); // Vai direto para a confirmação
         window.scrollTo(0, 0);
@@ -168,13 +191,13 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
          // Finalize booking logic
          const newAppointment: Appointment = {
             id: Date.now().toString(),
-            client: userDetails.name,
+            client: clientName,
             service: selectedService!.name,
             time: selectedTime!,
             date: selectedDate.displayDate,
             status: 'pendente', // Always pending until pro confirms
             phone: userDetails.phone,
-            professional: selectedProfessional!.name // Save the professional name
+            professional: selectedProfessional!.name, // Save the professional name
          };
 
          // Generate WhatsApp Message for Admin
@@ -186,8 +209,8 @@ export const BookingFlow: React.FC<BookingFlowProps> = ({
 ⏰ *Horário:* ${selectedTime}
 ✂️ *Serviço:* ${selectedService!.name}
 👤 *Profissional:* ${selectedProfessional!.name}
-💰 *Valor Pago:* ${amountPaid?.toFixed(2)}
-Nome: ${userDetails.name}
+💰 *Valor Pago:* R$ ${amountPaid?.toFixed(2)}
+Nome: ${clientName}
 
 *Segue meu comprovante de pagamento em anexo!* 👇`;
 
@@ -205,14 +228,23 @@ Nome: ${userDetails.name}
   };
 
   const handleBack = () => {
-    // Se voltar da etapa de Data/Hora, libera o horário selecionado.
-    if (step === BookingStep.DATETIME) {
+    // Since professional step is skipped, going back from details should go to service
+    if (step === BookingStep.DETAILS) {
+        setStep(BookingStep.SERVICE);
+        window.scrollTo(0, 0);
+        return;
+    }
+    
+    // When going back to the time selection, unlock the slot
+    if (step === BookingStep.SERVICE) {
         onUnlockSlot();
         setSelectedTime(null);
     }
+
     if (step > 1) {
         setStep(prev => prev - 1);
-    } else {
+    } else { // step is 1 (DATETIME)
+        onUnlockSlot();
         onBackToLanding();
     }
   };
@@ -227,7 +259,19 @@ Nome: ${userDetails.name}
 
   // Logic to calculate available time slots
   const getAvailableSlots = () => {
+    const now = new Date();
+    const isToday = selectedDate.date.toDateString() === now.toDateString();
+    
     return timeSlotsForDay.filter(time => {
+      if (isToday) {
+          const [hour, minute] = time.split(':').map(Number);
+          const slotTime = new Date(selectedDate.date);
+          slotTime.setHours(hour, minute, 0, 0);
+          if (slotTime < now) {
+              return false;
+          }
+      }
+
       const isTaken = appointments.some(apt => {
         // Must match date
         if (apt.date !== selectedDate.displayDate) return false;
@@ -245,7 +289,8 @@ Nome: ${userDetails.name}
             return apt.professional === selectedProfessional.name;
         }
 
-        return false;
+        // For temporary slots without a specific professional yet, or if no professional is selected
+        return true;
       });
 
       return !isTaken;
@@ -253,12 +298,13 @@ Nome: ${userDetails.name}
   };
 
   const handleTimeSelect = (time: string) => {
+    onUnlockSlot(); // Unlock previous selection first
     setSelectedTime(time);
-    if (selectedService && selectedProfessional) {
+    if (selectedProfessional) {
         onLockSlot({
             time,
             date: selectedDate.displayDate,
-            service: selectedService.name,
+            service: selectedService?.name || 'Serviço em seleção...',
             professional: selectedProfessional.name,
         });
     }
@@ -269,22 +315,42 @@ Nome: ${userDetails.name}
       setSelectedTime(null); // Limpa a seleção de tempo
       setSelectedDate(day);
   };
+  
+  useEffect(() => {
+    // Update lock when service is selected
+    if (selectedService && selectedTime && selectedProfessional) {
+       onLockSlot({
+            time: selectedTime,
+            date: selectedDate.displayDate,
+            service: selectedService.name,
+            professional: selectedProfessional.name,
+        });
+    }
+  }, [selectedService]);
 
 
   const availableSlots = getAvailableSlots();
 
   // Renderers for each step
   const renderStepIndicator = () => {
-    const steps = [
-      { num: 1, label: 'Serviço' },
-      { num: 2, label: 'Profissional' },
-      { num: 3, label: 'Horário' },
-      { num: 4, label: 'Dados' },
+    let baseSteps = [
+      { num: BookingStep.DATETIME, label: 'Horário' },
+      { num: BookingStep.SERVICE, label: 'Serviço' },
+      { num: BookingStep.PROFESSIONAL, label: 'Profissional' },
+      { num: BookingStep.DETAILS, label: 'Dados' },
     ];
-    // Adiciona a etapa de pagamento apenas se o serviço tiver um preço
+    
+    // Always remove the professional step since it's now skipped
+    baseSteps = baseSteps.filter(s => s.num !== BookingStep.PROFESSIONAL);
+    
+    // Add payment step if needed
     if (typeof selectedService?.price === 'number') {
-      steps.push({ num: 5, label: 'Pagamento' });
+      baseSteps.push({ num: BookingStep.PAYMENT, label: 'Pagamento' });
     }
+    
+    const currentStepIndex = baseSteps.findIndex(s => s.num === step);
+    const progressPercentage = currentStepIndex >= 0 ? (currentStepIndex / (baseSteps.length -1)) * 100 : 0;
+
 
     return (
       <div className="w-full bg-white dark:bg-[#0a0a0a] pt-6 pb-4 px-4 shadow-sm mb-6 sticky top-0 z-10 transition-colors border-b border-transparent dark:border-white/5">
@@ -294,10 +360,10 @@ Nome: ${userDetails.name}
           {/* Active Progress */}
           <div 
             className="absolute top-1/2 left-0 h-1 bg-primary -z-10 rounded-full transition-all duration-300 ease-out"
-            style={{ width: `${((step - 1) / (steps.length)) * 100}%` }}
+            style={{ width: `${progressPercentage}%` }}
           ></div>
 
-          {steps.map((s) => (
+          {baseSteps.map((s) => (
             <div key={s.num} className="flex flex-col items-center">
               <div 
                 className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-colors duration-300 border-2 ${
@@ -466,35 +532,37 @@ Nome: ${userDetails.name}
   const renderDetails = () => (
     <div className="px-4 pb-24 max-w-2xl mx-auto">
       <h2 className="text-xl font-bold text-c-text-primary dark:text-white mb-4">Seus dados</h2>
-      <div className="bg-white dark:bg-[#0a0a0a] p-6 rounded-xl shadow-sm space-y-4 border border-gray-100 dark:border-white/5">
-        <div>
-          <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Nome Completo</label>
-          <input 
-            type="text" 
-            value={userDetails.name}
-            onChange={(e) => setUserDetails({...userDetails, name: e.target.value})}
-            className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="Ex: João Silva"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Telefone (WhatsApp)</label>
-          <input 
-            type="tel" 
-            value={userDetails.phone}
-            onChange={(e) => setUserDetails({...userDetails, phone: e.target.value})}
-            className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="(00) 00000-0000"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Observações (Opcional)</label>
-          <textarea 
-            value={userDetails.notes}
-            onChange={(e) => setUserDetails({...userDetails, notes: e.target.value})}
-            className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary h-24 resize-none"
-            placeholder="Alguma preferência especial?"
-          />
+      <div className="bg-white dark:bg-[#0a0a0a] p-6 rounded-xl shadow-sm border border-gray-100 dark:border-white/5">
+        <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Nome Completo</label>
+              <input 
+                type="text" 
+                value={userDetails.name}
+                onChange={(e) => setUserDetails({...userDetails, name: e.target.value})}
+                className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="Ex: João Silva"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Telefone (WhatsApp)</label>
+              <input 
+                type="tel" 
+                value={userDetails.phone}
+                onChange={(e) => setUserDetails({...userDetails, phone: e.target.value})}
+                className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="(00) 00000-0000"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-c-text-secondary dark:text-gray-300 mb-1">Observações (Opcional)</label>
+              <textarea 
+                value={userDetails.notes}
+                onChange={(e) => setUserDetails({...userDetails, notes: e.target.value})}
+                className="w-full border border-gray-300 dark:border-white/10 dark:bg-[#111] dark:text-white rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary h-24 resize-none"
+                placeholder="Alguma preferência especial?"
+              />
+            </div>
         </div>
       </div>
       
@@ -613,13 +681,19 @@ Nome: ${userDetails.name}
          <AlertCircle className="text-blue-500 flex-shrink-0" size={24} />
          <div className="text-sm text-blue-800 dark:text-blue-300">
              <p className="font-bold mb-1">Verifique seu WhatsApp</p>
-             <p>A conversa com o estabelecimento deve ter sido aberta para o envio do comprovante. O profissional confirmará assim que receber.</p>
+             {isPaymentSkipped ? (
+               <p>A conversa com o estabelecimento foi aberta para você enviar sua solicitação. O profissional confirmará em breve.</p>
+             ) : (
+               <p>A conversa com o estabelecimento deve ter sido aberta para o envio do comprovante. O profissional confirmará assim que receber.</p>
+             )}
          </div>
       </div>
       
       <div className="bg-white dark:bg-[#0a0a0a] p-6 rounded-xl shadow-lg w-full max-w-sm border border-gray-100 dark:border-white/5">
         <div className="flex items-center gap-4 mb-4 border-b border-gray-100 dark:border-white/5 pb-4">
-          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center"><User size={24} className="text-gray-500"/></div>
+          <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+            <User size={24} className="text-gray-500"/>
+          </div>
           <div className="text-left">
             <p className="font-bold text-c-list-title dark:text-white">{selectedService?.name}</p>
             <p className="text-sm text-c-list-info dark:text-gray-400">com {selectedProfessional?.name}</p>
@@ -639,12 +713,12 @@ Nome: ${userDetails.name}
 
       <button 
         onClick={() => {
-          setStep(BookingStep.SERVICE);
+          setStep(BookingStep.DATETIME);
           setSelectedService(null);
-          setSelectedProfessional(null);
           setSelectedTime(null);
           setUserDetails({name: '', phone: '', notes: ''});
           setPaymentType('deposit');
+          setIsPaymentSkipped(false);
           window.scrollTo(0, 0);
         }}
         className="mt-8 text-primary font-semibold hover:text-primary-hover"
@@ -675,9 +749,9 @@ Nome: ${userDetails.name}
       {step < BookingStep.CONFIRMATION && businessProfile.name && renderProfileHeader()}
 
       <div className="max-w-3xl mx-auto pt-4">
-        {step === BookingStep.SERVICE && renderServices()}
-        {step === BookingStep.PROFESSIONAL && renderProfessionals()}
         {step === BookingStep.DATETIME && renderDateTime()}
+        {step === BookingStep.SERVICE && renderServices()}
+        {step === BookingStep.PROFESSIONAL && !preSelectedProId && renderProfessionals()}
         {step === BookingStep.DETAILS && renderDetails()}
         {step === BookingStep.PAYMENT && renderPayment()}
         {step === BookingStep.CONFIRMATION && renderConfirmation()}

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { ViewState, Theme, BusinessProfile, Appointment, Professional, Service, AdminUser, Product, ClientPlan, ServiceCategory } from './types';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -419,6 +418,7 @@ const App: React.FC = () => {
       }
       
       setCurrentUser(user);
+      setPublicStoreId(null); // Clear public view state on login
       setIsDataLoaded(false); // Trigger data reload for this user
       
       if (user.subscription?.status === 'expired') {
@@ -495,16 +495,12 @@ const App: React.FC = () => {
             currentTheme={theme}
             businessProfile={businessProfile}
             onUpdateProfile={updateProfile}
-            appointments={appointments}
+            appointments={displayedAppointments}
             setAppointments={setAppointments}
             professionals={professionals}
             setProfessionals={setProfessionals}
             services={services}
             setServices={setServices}
-            products={products}
-            setProducts={setProducts}
-            clientPlans={clientPlans}
-            setClientPlans={setClientPlans}
             categories={categories}
             setCategories={setCategories}
             currentUser={currentUser}
